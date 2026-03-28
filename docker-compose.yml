@@ -1,0 +1,44 @@
+services:
+  main:
+    build: .
+    command: ["node", "dist/index.js", "main"]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+      BASE_URL: http://localhost:8787
+      DATA_DIR: /data/main
+      ALLOWED_PROJECT_ROOTS: /workspace
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8788
+      BACKEND_PUBLIC_URL: http://127.0.0.1:8788
+      BACKEND_NAME: local-main-backend
+      BACKEND_AUTH_TOKEN:
+      TMUX_SOCKET_MODE: default
+      TMUX_SOCKET_NAME: tmux-web-manager-main
+      SESSION_PREFIX: tmux-web-manager
+      OH_MY_TMUX_CONF: /opt/oh-my-tmux/.tmux.conf
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./.data/main:/data/main
+      - /workspace:/workspace
+
+  sub:
+    build: .
+    command: ["node", "dist/index.js", "sub"]
+    environment:
+      DATA_DIR: /data/sub
+      ALLOWED_PROJECT_ROOTS: /workspace
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8790
+      BACKEND_NAME: remote-sub-backend
+      BACKEND_AUTH_TOKEN:
+      TMUX_SOCKET_MODE: default
+      TMUX_SOCKET_NAME: tmux-web-manager-sub
+      SESSION_PREFIX: tmux-web-manager
+      OH_MY_TMUX_CONF: /opt/oh-my-tmux/.tmux.conf
+    ports:
+      - "8790:8790"
+    volumes:
+      - ./.data/sub:/data/sub
+      - /workspace:/workspace

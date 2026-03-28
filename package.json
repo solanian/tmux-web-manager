@@ -1,0 +1,28 @@
+{
+  "name": "tmux-web-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Distributed tmux web server with xterm.js frontend and tmux backend services",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js main",
+    "start:main": "node dist/index.js main",
+    "start:sub": "node dist/index.js sub",
+    "dev": "tsx src/index.ts main",
+    "dev:sub": "tsx src/index.ts sub",
+    "install:native": "node dist/install-native.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.0"
+  }
+}

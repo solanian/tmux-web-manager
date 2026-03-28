@@ -1,0 +1,137 @@
+# tmux-web-manager
+
+여러 서버 환경을 위한 웹 기반 tmux 세션 매니저입니다.
+
+`tmux-web-manager`는 두 가지 역할로 구성된 분산형 tmux 웹 관리 도구입니다.
+
+- `main`: 중앙 xterm.js 웹 UI와 로컬 tmux backend 서버를 함께 실행
+- `sub`: 원격 머신용 tmux backend 서버만 실행
+
+영문 README는 [`README.md`](./README.md)에서 볼 수 있습니다.
+
+프로젝트 문서는 다음 파일에 정리되어 있습니다.
+
+- [`docs/specification.md`](./docs/specification.md)
+- [`docs/memory.md`](./docs/memory.md)
+- [`docs/troubleshooting.md`](./docs/troubleshooting.md)
+- [`docs/test.md`](./docs/test.md)
+
+중앙 UI는 backend 서버 정의를 저장하고, 등록된 backend들에 있는 tmux 세션을 생성/삭제/선택할 수 있으며, 선택된 세션을 xterm.js 터미널로 표시합니다.
+
+## 주요 기능
+
+- raw PTY 기반 `tmux attach-session` xterm.js 터미널 뷰
+- 여러 backend 서버 등록 및 영속 저장
+- 좌측 sidebar 기반 backend / session 관리
+- backend, 작업 경로, optional session 이름으로 세션 생성
+- HTTP + WebSocket 기반 backend API
+- 기본적으로 host의 기본 tmux server를 사용하고, 필요하면 dedicated socket mode 사용 가능
+- `main` / `sub` 실행 모드 지원
+
+## 환경 변수
+
+- `HOST`: `main` 모드 중앙 UI bind host, 기본값 `0.0.0.0`
+- `PORT`: `main` 모드 중앙 UI 포트, 기본값 `8787`
+- `BASE_URL`: 중앙 UI public URL, 기본값 `http://localhost:8787`
+- `DATA_DIR`: 데이터 루트 디렉터리, 기본값 `~/.tmux-web-manager`
+- `ALLOWED_PROJECT_ROOTS`: 허용할 절대 경로 root 목록(콤마 구분)
+- `BACKEND_HOST`: backend bind host, 기본값 `0.0.0.0`
+- `BACKEND_PORT`: backend 포트, 기본값 `8788`
+- `BACKEND_PUBLIC_URL`: 중앙 서비스가 local backend에 접근할 때 사용할 base URL
+- `BACKEND_NAME`: local backend 표시 이름
+- `BACKEND_AUTH_TOKEN`: backend API / WebSocket용 optional bearer token
+- `TMUX_SOCKET_MODE`: `default` 또는 `dedicated`, 기본값 `default`
+- `TMUX_SOCKET_NAME`: `dedicated` 모드에서 사용할 tmux socket 이름
+- `SESSION_PREFIX`: 자동 생성 세션 이름 prefix
+- `OH_MY_TMUX_CONF`: `dedicated` 모드 generated config에서 source할 oh-my-tmux config 경로
+
+## 로컬 실행
+
+```bash
+npm install
+npm run build
+npm run start:main
+```
+
+기본적으로 `HOST=0.0.0.0`, `BACKEND_HOST=0.0.0.0`으로 bind되므로, loopback으로 제한하지 않는 한 LAN에서 접근할 수 있습니다.
+
+기본 backend는 host의 기본 tmux server에 붙습니다. 예전처럼 격리된 동작이 필요하면 `TMUX_SOCKET_MODE=dedicated`를 사용하면 됩니다.
+
+backend 전용 실행:
+
+```bash
+npm run start:sub
+```
+
+장시간 운영용 자동 재시작 실행:
+
+```bash
+nohup ./scripts/run-main-supervised.sh >/tmp/tmux-web-manager-supervised/nohup.out 2>&1 &
+```
+
+## Native install
+
+Docker 없이 standalone prefix에 설치:
+
+```bash
+cd tmux-web-manager
+./scripts/install-native.sh \
+  --prefix "$HOME/.local/share/tmux-web-manager" \
+  --data-dir "$HOME/.local/state/tmux-web-manager" \
+  --allowed-root /workspace \
+  --tmux-socket-mode default \
+  --oh-my-tmux-conf "$HOME/.tmux.conf"
+```
+
+생성물:
+
+- `PREFIX/app/` (`dist/`, `node_modules/`, package metadata 포함)
+- `PREFIX/etc/tmux-web-manager.env`
+- `PREFIX/bin/run-main.sh`
+- `PREFIX/bin/run-sub.sh`
+
+설치 후 실행:
+
+```bash
+$HOME/.local/share/tmux-web-manager/bin/run-main.sh
+```
+
+## Docker Compose
+
+```bash
+docker compose up --build
+```
+
+기본 구성:
+
+- `main`: `8787`
+- local backend: `8788`
+- extra `sub` backend: `8790`
+
+## API 요약
+
+중앙 web server:
+
+- `GET /api/state`
+- `POST /api/backends`
+- `PUT /api/backends/:id`
+- `DELETE /api/backends/:id`
+- `POST /api/sessions`
+- `PUT /api/sessions/:backendId/:sessionId`
+- `DELETE /api/sessions/:backendId/:sessionId`
+- `WS /ws/terminal?backendId=...&sessionId=...`
+
+tmux backend server:
+
+- `GET /api/health`
+- `GET /api/sessions`
+- `POST /api/sessions`
+- `POST /api/sessions/by-name/:sessionName/send-text`
+- `PUT /api/sessions/:id`
+- `DELETE /api/sessions/:id`
+- `WS /ws/sessions/:id`
+
+## 참고
+
+- native install은 host에 `node`와 `tmux`가 있어야 합니다.
+- `dedicated` 모드에서는 generated tmux config가 `OH_MY_TMUX_CONF`를 source하고 `mouse on`을 강제합니다.
