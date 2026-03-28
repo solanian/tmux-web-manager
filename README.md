@@ -34,7 +34,7 @@ The central UI stores backend server definitions, lets you create/delete tmux se
 - `BACKEND_PORT`: tmux backend port, default `8788`
 - `BACKEND_PUBLIC_URL`: base URL the central service should use for its local backend entry
 - `BACKEND_NAME`: display name for the local backend entry
-- `BACKEND_AUTH_TOKEN`: optional bearer token required by the backend API and WebSocket
+- `BACKEND_AUTH_TOKEN`: bearer token required by the backend API and WebSocket; if omitted, the agent generates and persists one automatically
 - `TMUX_SOCKET_MODE`: `default` or `dedicated`, default `default`
 - `TMUX_SOCKET_NAME`: dedicated tmux socket name used when `TMUX_SOCKET_MODE=dedicated`
 - `SESSION_PREFIX`: default prefix for auto-generated tmux session names
@@ -51,6 +51,14 @@ npm run start:main
 By default the app binds `HOST=0.0.0.0` and `BACKEND_HOST=0.0.0.0`, so the central UI and local backend are LAN-accessible unless you override them to loopback-only addresses such as `127.0.0.1`.
 
 By default the backend attaches to the host's default tmux server. If you want the old isolated behavior, set `TMUX_SOCKET_MODE=dedicated`.
+
+Each agent requires a backend auth token. If `BACKEND_AUTH_TOKEN` is not set, the agent generates one automatically and stores it in:
+
+```bash
+$DATA_DIR/backend/agent-auth-token
+```
+
+Hub-side backend registration must use that token.
 
 Backend-only mode:
 

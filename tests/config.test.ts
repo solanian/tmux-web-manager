@@ -38,6 +38,8 @@ describe('getConfig', () => {
     expect(config.host).toBe('0.0.0.0');
     expect(config.backendHost).toBe('0.0.0.0');
     expect(config.tmuxSocketMode).toBe('default');
+    expect(config.backendAuthToken).not.toBe('');
+    expect(fs.existsSync(config.backendAuthTokenPath)).toBe(true);
   });
 
   it('builds separate central and backend data directories', () => {

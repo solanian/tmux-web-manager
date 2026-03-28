@@ -17,6 +17,7 @@
 
 - 경로 allowlist 검증
 - tmux session id 생성과 optional session name 반영
+- backend auth token 자동 생성/보존 및 token 없이는 API 접근 불가
 - session name 기준 send-text + auto-enter API
 - tmux session rename API
 - tmux 입력 매핑과 `send-keys` 경로
@@ -44,6 +45,9 @@
 - mobile 에서 sidebar toggle 버튼과 off-canvas/sidebar drawer 구조 존재
 - sidebar 에 `Servers` / `Sessions` 탭이 존재하고 탭 panel 구분 마크업이 존재
 - backend/session 생성·수정 폼은 modal 마크업으로 존재하고 상시 sidebar 에 노출되지 않음
+- backend modal 에 agent token 입력 필드와 안내 문구가 존재
+- backend token 입력 필드는 password 타입이며 edit 시 기존 값이 prefill 됨
+- backend token 입력 필드에는 copy/cut/clipboard shortcut 차단 로직이 존재
 - sidebar server/session 목록에 compact list 전용 클래스/마크업이 존재
 - session list 요약 문자열이 동일 requested/cwd 를 중복 표시하지 않음
 - session row 클릭으로 open 가능하고 delete confirm modal 마크업이 존재

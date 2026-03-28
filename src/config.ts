@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 import type { RunMode, TmuxSocketMode } from './types.js';
 
@@ -18,6 +19,7 @@ export interface AppConfig {
   backendPublicUrl: string;
   backendName: string;
   backendAuthToken: string;
+  backendAuthTokenPath: string;
   tmuxSocketMode: TmuxSocketMode;
   tmuxSocketName: string;
   sessionPrefix: string;
@@ -37,6 +39,32 @@ function parseInteger(value: string | undefined, fallback: number): number {
 
 function defaultDataDir(): string {
   return path.join(os.homedir(), '.tmux-web-manager');
+}
+
+function resolveBackendAuthToken(
+  backendDataDir: string,
+  envToken: string | undefined,
+): { token: string; tokenPath: string } {
+  const tokenPath = path.join(backendDataDir, 'agent-auth-token');
+  const providedToken = envToken?.trim();
+  if (providedToken) {
+    fs.writeFileSync(tokenPath, `${providedToken}\n`, { mode: 0o600 });
+    return { token: providedToken, tokenPath };
+  }
+
+  if (fs.existsSync(tokenPath)) {
+    const existingToken = fs.readFileSync(tokenPath, 'utf8').trim();
+    if (existingToken) {
+      return { token: existingToken, tokenPath };
+    }
+  }
+
+  const generatedToken = crypto.randomBytes(24).toString('hex');
+  fs.writeFileSync(tokenPath, `${generatedToken}\n`, { mode: 0o600 });
+  try {
+    fs.chmodSync(tokenPath, 0o600);
+  } catch {}
+  return { token: generatedToken, tokenPath };
 }
 
 function parseTmuxSocketMode(value: string | undefined): TmuxSocketMode {
@@ -126,6 +154,10 @@ export function getConfig(args = process.argv.slice(2)): AppConfig {
   ensureDir(backendDataDir);
 
   const backendPort = parseInteger(process.env['BACKEND_PORT'], 8788);
+  const { token: backendAuthToken, tokenPath: backendAuthTokenPath } = resolveBackendAuthToken(
+    backendDataDir,
+    process.env['BACKEND_AUTH_TOKEN'],
+  );
 
   return {
     mode,
@@ -140,7 +172,8 @@ export function getConfig(args = process.argv.slice(2)): AppConfig {
     backendPort,
     backendPublicUrl: process.env['BACKEND_PUBLIC_URL'] || `http://127.0.0.1:${backendPort}`,
     backendName: process.env['BACKEND_NAME'] || 'local-backend',
-    backendAuthToken: process.env['BACKEND_AUTH_TOKEN'] || '',
+    backendAuthToken,
+    backendAuthTokenPath,
     tmuxSocketMode: parseTmuxSocketMode(process.env['TMUX_SOCKET_MODE']),
     tmuxSocketName: process.env['TMUX_SOCKET_NAME'] || 'tmux-web-manager',
     sessionPrefix: process.env['SESSION_PREFIX'] || 'tmux-web-manager',

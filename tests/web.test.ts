@@ -81,6 +81,10 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('id="confirmModal"');
     expect(html).toContain('id="sessionEditingId"');
     expect(html).toContain('id="sessionEditingBackendId"');
+    expect(html).toContain('Agent Token');
+    expect(html).toContain('paste the token from the agent host');
+    expect(html).toContain('$DATA_DIR/backend/agent-auth-token');
+    expect(html).toContain('type="password"');
     expect(html).toContain('id="openBackendCreate"');
     expect(html).toContain('id="openSessionCreate"');
     expect(html).toContain('class="list cmuxList listScroll"');
@@ -99,6 +103,8 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('setSidebarOpen(!state.sidebarOpen);');
     expect(html).toContain('function formatRelativeTime(input)');
     expect(html).toContain('function buildSessionPathSummary(session)');
+    expect(html).toContain('function protectSensitiveInput(input)');
+    expect(html).toContain("protectSensitiveInput(backendAuthTokenInput);");
     expect(html).toContain('id="hoverTooltip"');
     expect(html).toContain('function attachHoverTooltip(element, text)');
     expect(html).toContain('attachHoverTooltip(tertiary, fullPathSummary);');

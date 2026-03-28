@@ -39,7 +39,7 @@
 - `BACKEND_PORT`: backend 포트, 기본값 `8788`
 - `BACKEND_PUBLIC_URL`: 중앙 서비스가 local backend에 접근할 때 사용할 base URL
 - `BACKEND_NAME`: local backend 표시 이름
-- `BACKEND_AUTH_TOKEN`: backend API / WebSocket용 optional bearer token
+- `BACKEND_AUTH_TOKEN`: backend API / WebSocket용 bearer token. 지정하지 않으면 agent가 자동 생성해서 저장합니다.
 - `TMUX_SOCKET_MODE`: `default` 또는 `dedicated`, 기본값 `default`
 - `TMUX_SOCKET_NAME`: `dedicated` 모드에서 사용할 tmux socket 이름
 - `SESSION_PREFIX`: 자동 생성 세션 이름 prefix
@@ -56,6 +56,14 @@ npm run start:main
 기본적으로 `HOST=0.0.0.0`, `BACKEND_HOST=0.0.0.0`으로 bind되므로, loopback으로 제한하지 않는 한 LAN에서 접근할 수 있습니다.
 
 기본 backend는 host의 기본 tmux server에 붙습니다. 예전처럼 격리된 동작이 필요하면 `TMUX_SOCKET_MODE=dedicated`를 사용하면 됩니다.
+
+각 agent는 backend auth token이 반드시 필요합니다. `BACKEND_AUTH_TOKEN`이 없으면 agent가 자동으로 생성해서 다음 파일에 저장합니다.
+
+```bash
+$DATA_DIR/backend/agent-auth-token
+```
+
+hub에서 backend를 등록할 때는 이 토큰을 사용해야 합니다.
 
 backend 전용 실행:
 

@@ -33,6 +33,7 @@
 - README 상단 한줄 설명 추가 및 `README-ko.md` 한국어 문서 추가
 - 프로젝트 사용자 노출 이름을 `tmux-web-manager`로 정리하고 현재 디렉터리를 독립 Git 저장소로 초기화
 - backend에 session name 기준 `send-text + Enter` API 추가 및 실동작 검증 완료
+- backend edit modal 에서 token을 password 형태로 prefill 하되 copy/cut/clipboard shortcut 차단을 추가
 
 ### Naming
 

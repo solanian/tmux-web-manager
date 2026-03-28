@@ -245,6 +245,7 @@ export function renderHtmlPage(): string {
     .section h2, .sectionHeader h2 { margin: 0; font-size: 15px; }
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .field input, .field select { width: 100%; min-height: 38px; border-radius: 10px; border: 1px solid var(--border); background: #0d1520; color: var(--text); padding: 8px 10px; }
+    .fieldHint { font-size: 12px; color: var(--muted); line-height: 1.4; }
     .row { display: flex; gap: 8px; }
     .row > * { flex: 1; }
     .list { display: flex; flex-direction: column; gap: 8px; }
@@ -375,7 +376,11 @@ export function renderHtmlPage(): string {
         <input type="hidden" id="backendId" />
         <div class="field"><label for="backendName">Name</label><input id="backendName" required /></div>
         <div class="field"><label for="backendBaseUrl">Base URL</label><input id="backendBaseUrl" placeholder="http://host:8788" required /></div>
-        <div class="field"><label for="backendAuthToken">Auth Token</label><input id="backendAuthToken" placeholder="optional bearer token" /></div>
+        <div class="field">
+          <label for="backendAuthToken">Agent Token</label>
+          <input id="backendAuthToken" type="password" placeholder="paste the token from the agent host" required />
+          <div class="fieldHint">Read this from the agent file: <code>$DATA_DIR/backend/agent-auth-token</code></div>
+        </div>
         <div class="row">
           <button type="submit" id="backendSubmit">Save Server</button>
           <button type="button" id="backendReset">Cancel</button>
@@ -480,6 +485,7 @@ export function renderHtmlPage(): string {
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
+    protectSensitiveInput(backendAuthTokenInput);
 
     function applyTerminalFontSize(nextFontSize) {
       state.terminalFontSize = Math.max(10, Math.min(24, nextFontSize));
@@ -512,12 +518,17 @@ export function renderHtmlPage(): string {
 
     function openBackendModal(mode, backendState) {
       resetBackendForm();
-      backendModalTitle.textContent = mode === 'edit' ? 'Edit Server' : 'Add Server';
+      const isEdit = mode === 'edit';
+      backendModalTitle.textContent = isEdit ? 'Edit Server' : 'Add Server';
+      backendAuthTokenInput.required = !isEdit;
       if (backendState) {
         backendIdInput.value = backendState.backend.id;
         backendNameInput.value = backendState.backend.name;
         backendBaseUrlInput.value = backendState.backend.baseUrl;
         backendAuthTokenInput.value = backendState.backend.authToken || '';
+        backendAuthTokenInput.placeholder = 'agent token';
+      } else {
+        backendAuthTokenInput.placeholder = 'paste the token from the agent host';
       }
       backendModal.hidden = false;
       sessionModal.hidden = true;
@@ -694,6 +705,23 @@ export function renderHtmlPage(): string {
       backendNameInput.value = '';
       backendBaseUrlInput.value = '';
       backendAuthTokenInput.value = '';
+      backendAuthTokenInput.required = true;
+      backendAuthTokenInput.placeholder = 'paste the token from the agent host';
+    }
+
+    function protectSensitiveInput(input) {
+      const blockedClipboardEvents = ['copy', 'cut', 'dragstart', 'contextmenu'];
+      blockedClipboardEvents.forEach((eventName) => {
+        input.addEventListener(eventName, (event) => {
+          event.preventDefault();
+        });
+      });
+      input.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && (key === 'c' || key === 'x')) {
+          event.preventDefault();
+        }
+      });
     }
 
     function resetSessionForm() {
@@ -918,7 +946,7 @@ export function renderHtmlPage(): string {
       const body = JSON.stringify({
         name: backendNameInput.value,
         baseUrl: backendBaseUrlInput.value,
-        authToken: backendAuthTokenInput.value,
+        ...(backendAuthTokenInput.value ? { authToken: backendAuthTokenInput.value } : {}),
       });
       const backendId = backendIdInput.value.trim();
       if (backendId) {

@@ -28,6 +28,7 @@ async function run(): Promise<void> {
     await backend.start();
     shutdownTasks.push(() => backend.stop());
     logger.log('Running in sub mode');
+    logger.log(`Backend auth token file: ${config.backendAuthTokenPath}`);
   } else {
     const registryStore = new BackendRegistryStore(config.centralDataDir);
     await backend.start();
@@ -44,6 +45,7 @@ async function run(): Promise<void> {
     await web.start();
     shutdownTasks.unshift(() => web.stop());
     logger.log(`Running in main mode, UI available at ${config.baseUrl}`);
+    logger.log(`Local backend auth token file: ${config.backendAuthTokenPath}`);
   }
 
   const shutdown = async (reason: string) => {

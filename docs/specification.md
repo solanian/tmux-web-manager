@@ -37,6 +37,9 @@
 - mobile sidebar 는 버튼으로 숨김/표시 전환이 가능해야 함
 - sidebar 내부 목록 영역은 최소 `Servers` / `Sessions` 두 개의 탭으로 나뉘어 전환 가능해야 함
 - backend create/edit UI 와 session create UI 는 상시 표시되지 않고, 해당 액션 시 modal 로 표시되어야 함
+- backend create/edit modal 에는 agent token 입력 UI가 명확히 보여야 하며, remote backend 등록 시 필수값처럼 안내되어야 함
+- backend edit modal 은 기존 token 값을 password 형태로 prefill 할 수 있어야 함
+- backend token 입력 UI는 일반 브라우저 복사 동작(`copy`, `cut`, `Ctrl/Cmd+C`)으로 token이 클립보드에 복사되지 않도록 보호되어야 함
 - sidebar 의 server/session 목록은 `cmux` 같은 dense list 감성으로 compact 하게 표시되어야 함
 - session list 에서는 session 이름이 가장 눈에 띄어야 하며 server tag 는 한 줄 아래에 배치되어야 함
 - session list 의 경로 정보는 중복 없이 표시되어야 하며 `requestedPath` 와 `currentPath` 가 같으면 cwd 를 반복 표시하지 않아야 함
@@ -68,6 +71,7 @@
 
 - `GET /api/health` 로 backend 이름, tmux socket 이름, oh-my-tmux config 경로를 반환해야 함
 - 기본 backend bind host 는 override 가 없으면 `0.0.0.0` 이어야 하며 LAN 접속을 허용해야 함
+- agent는 backend auth token을 자동 생성/보존할 수 있어야 하며, token 없이는 hub가 agent API/WS에 연결할 수 없어야 함
 - `GET /api/sessions` 로 관리 중인 session 목록을 반환해야 함
 - agent 가 사용하는 tmux socket 에 기존 session 이 있으면 startup/list refresh 시 자동으로 관리 목록에 편입해야 함
 - session payload 는 tmux `session_activity` 기반 최근 활동 시각을 포함해야 함
