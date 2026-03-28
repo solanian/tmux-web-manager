@@ -77,6 +77,9 @@ For a more robust user-level service, install the bundled systemd unit:
 ```bash
 mkdir -p ~/.config/systemd/user
 cp ./scripts/systemd/tmux-web-manager.service ~/.config/systemd/user/
+mkdir -p ~/.config/tmux-web-manager
+cp ./scripts/systemd/tmux-web-manager.env.example ~/.config/tmux-web-manager/tmux-web-manager.env
+# edit ~/.config/tmux-web-manager/tmux-web-manager.env for your machine
 systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```

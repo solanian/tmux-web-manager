@@ -82,6 +82,9 @@ nohup ./scripts/run-main-supervised.sh >/tmp/tmux-web-manager-supervised/nohup.o
 ```bash
 mkdir -p ~/.config/systemd/user
 cp ./scripts/systemd/tmux-web-manager.service ~/.config/systemd/user/
+mkdir -p ~/.config/tmux-web-manager
+cp ./scripts/systemd/tmux-web-manager.env.example ~/.config/tmux-web-manager/tmux-web-manager.env
+# ~/.config/tmux-web-manager/tmux-web-manager.env 를 현재 서버 환경에 맞게 수정
 systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```

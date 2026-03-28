@@ -55,11 +55,11 @@
 - existing tmux session import on agent socket: pass (`tfw-manual-import-check` auto-imported into `/api/state`)
 - `TMUX_SOCKET_MODE=default` host tmux visibility: pass (`discord-cli-bridge`, `dtwl-service`, `tfw-main-runner` 노출)
 - session rename via UI/API flow: pass (`tfw-ui-edit-test-a` -> `tfw-ui-edit-test-b`)
-- supervised main launcher: pass (`bash ./scripts/run-main-supervised.sh`, 현재 `3610593/3610601` 프로세스로 동작)
+- supervised main launcher: pass
 - backend send-text API: pass (`POST /api/sessions/by-name/twm-send-text-test/send-text` -> `test` line written)
 - hub relay send-text API: pass (`POST /api/relay/send-text` -> target tmux session file에 `test`)
 - relay audit log: pass (`relay-log.jsonl` 에 source/target/text 기록)
-- hostname default backend name: pass (`backend_name == hostname == dsseo-desktop`)
+- hostname default backend name: pass (`backend_name == hostname`)
 - native install: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass

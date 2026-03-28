@@ -84,14 +84,14 @@
 - `npm test`: pass (`30 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
-- `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (UI `38187`, backend `38188`, LAN IP smoke `192.168.0.80`)
+- `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)
 - existing tmux session import: pass (`tmux -L tmux-web-manager-main-run ... new-session -s tfw-manual-import-check` 후 `/api/state` 노출)
 - host default tmux mode: pass (`TMUX_SOCKET_MODE=default` 에서 host 기본 tmux session 13개 노출)
 - session rename flow: pass (`PUT /api/sessions/local/...` 로 `tfw-ui-edit-test-a` -> `tfw-ui-edit-test-b`)
 - supervised launcher runtime: pass (`bash ./scripts/run-main-supervised.sh` + `/api/state` 응답)
 - backend send-text API: pass (`POST /api/sessions/by-name/twm-send-text-test/send-text` -> `/tmp/twm-send-text-test.out`에 `test`)
 - hub relay send-text API: pass (`POST /api/relay/send-text` -> `/tmp/twm-hub-relay-test.out`에 `test`)
-- relay audit log: pass (`/tmp/tmux-web-manager-host-default/data/central/relay-log.jsonl` 기록 확인)
+- relay audit log: pass (`$DATA_DIR/central/relay-log.jsonl` 기록 확인)
 - hostname default backend name: pass (`backend_name == hostname`)
 - native install artifact generation: pass
 - installed `run-main.sh`: pass
