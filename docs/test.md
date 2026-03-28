@@ -6,6 +6,9 @@
 - 여러 agent backend 의 session 목록 집계와 sidebar payload 구성
 - session 생성 시 backend 선택, 작업 경로, optional session 이름 전달
 - session rename 시 backend/session id 와 새 session 이름 전달
+- hub relay API 가 source/target backend 이름 + source/target session 이름 + text 기준 send-text 를 전달
+- relay 감사 로그 파일에 source/target backend 이름, source/target session 이름, text가 기록
+- relay 요청에서 4개 name 필드와 text 외의 식별자 없이도 동작
 - 중앙 terminal WebSocket proxy 가 agent terminal stream 을 중계
 - `main` 모드가 web + local backend 를 함께 띄우는 config parse
 - `HOST` 미지정 시 기본 bind host 가 `0.0.0.0` 이어서 LAN 접속을 허용
@@ -22,6 +25,7 @@
 - tmux session rename API
 - tmux 입력 매핑과 `send-keys` 경로
 - 기본 tmux socket mode 가 host default tmux 를 사용
+- `BACKEND_NAME` 미지정 시 hostname 기반 기본 이름 사용
 - dedicated tmux socket / config 는 opt-in mode 로 사용
 - dedicated mode 에서 generated tmux config 의 oh-my-tmux source + mouse-on 설정
 - `sub` 모드가 backend 전용으로 기동되는 config parse
@@ -36,6 +40,7 @@
 - install script 가 env/run 파일을 올바르게 생성
 - 설치 prefix 아래 `app/dist`, `app/node_modules`, `etc`, `bin` 산출물 생성
 - restart-loop launcher script 가 존재하고 long-running main 실행에 사용 가능
+- user-level systemd service unit 이 존재하고 `systemctl --user enable --now` 가능
 
 ## UI rendering
 
@@ -76,7 +81,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`25 passed`)
+- `npm test`: pass (`30 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (UI `38187`, backend `38188`, LAN IP smoke `192.168.0.80`)
@@ -85,6 +90,9 @@
 - session rename flow: pass (`PUT /api/sessions/local/...` 로 `tfw-ui-edit-test-a` -> `tfw-ui-edit-test-b`)
 - supervised launcher runtime: pass (`bash ./scripts/run-main-supervised.sh` + `/api/state` 응답)
 - backend send-text API: pass (`POST /api/sessions/by-name/twm-send-text-test/send-text` -> `/tmp/twm-send-text-test.out`에 `test`)
+- hub relay send-text API: pass (`POST /api/relay/send-text` -> `/tmp/twm-hub-relay-test.out`에 `test`)
+- relay audit log: pass (`/tmp/tmux-web-manager-host-default/data/central/relay-log.jsonl` 기록 확인)
+- hostname default backend name: pass (`backend_name == hostname`)
 - native install artifact generation: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass

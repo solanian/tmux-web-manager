@@ -41,6 +41,10 @@ function defaultDataDir(): string {
   return path.join(os.homedir(), '.tmux-web-manager');
 }
 
+function defaultBackendName(): string {
+  return os.hostname();
+}
+
 function resolveBackendAuthToken(
   backendDataDir: string,
   envToken: string | undefined,
@@ -171,7 +175,7 @@ export function getConfig(args = process.argv.slice(2)): AppConfig {
     backendHost: process.env['BACKEND_HOST'] || '0.0.0.0',
     backendPort,
     backendPublicUrl: process.env['BACKEND_PUBLIC_URL'] || `http://127.0.0.1:${backendPort}`,
-    backendName: process.env['BACKEND_NAME'] || 'local-backend',
+    backendName: process.env['BACKEND_NAME'] || defaultBackendName(),
     backendAuthToken,
     backendAuthTokenPath,
     tmuxSocketMode: parseTmuxSocketMode(process.env['TMUX_SOCKET_MODE']),

@@ -66,6 +66,22 @@ async function run(): Promise<void> {
   process.on('SIGTERM', () => {
     void shutdown('SIGTERM');
   });
+  process.on('beforeExit', (code) => {
+    logger.warn(`beforeExit: ${code}`);
+  });
+  process.on('exit', (code) => {
+    logger.warn(`exit: ${code}`);
+  });
+  process.on('warning', (warning) => {
+    logger.warn('process warning:', warning);
+  });
+  process.on('uncaughtException', (error) => {
+    logger.error('uncaughtException:', error);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    logger.error('unhandledRejection:', reason);
+  });
 }
 
 run().catch((error) => {

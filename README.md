@@ -72,6 +72,15 @@ For a long-running auto-restarting host process:
 nohup ./scripts/run-main-supervised.sh >/tmp/tmux-web-manager-supervised/nohup.out 2>&1 &
 ```
 
+For a more robust user-level service, install the bundled systemd unit:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp ./scripts/systemd/tmux-web-manager.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now tmux-web-manager.service
+```
+
 ## Native install
 
 Install into a standalone prefix without Docker:
@@ -119,8 +128,32 @@ Central web server:
 - `PUT /api/backends/:id`
 - `DELETE /api/backends/:id`
 - `POST /api/sessions`
+- `PUT /api/sessions/:backendId/:sessionId`
 - `DELETE /api/sessions/:backendId/:sessionId`
+- `POST /api/relay/send-text`
 - `WS /ws/terminal?backendId=...&sessionId=...`
+
+Relay usage example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/send-text \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourceSessionName": "source-session",
+    "targetBackendName": "server-b",
+    "targetSessionName": "target-session",
+    "text": "echo hello"
+  }'
+```
+
+Relay audit logs are written under:
+
+```bash
+$DATA_DIR/central/relay-log.jsonl
+```
+
+The relay request uses backend/session names only so the audit log always records a human-readable source and target.
 
 tmux backend server:
 

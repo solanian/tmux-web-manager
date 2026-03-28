@@ -1,0 +1,21 @@
+[Unit]
+Description=tmux-web-manager main service
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dsseo/.discord-tmux-web-launcher/workspaces/91465de8/tmux-fleet-web
+Environment=HOST=0.0.0.0
+Environment=PORT=38187
+Environment=BACKEND_HOST=0.0.0.0
+Environment=BACKEND_PORT=38188
+Environment=BACKEND_PUBLIC_URL=http://127.0.0.1:38188
+Environment=TMUX_SOCKET_MODE=default
+Environment=SESSION_PREFIX=tmux-web-manager
+Environment=ALLOWED_PROJECT_ROOTS=/home/dsseo
+ExecStart=/usr/bin/env node dist/index.js main
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -77,6 +77,15 @@ npm run start:sub
 nohup ./scripts/run-main-supervised.sh >/tmp/tmux-web-manager-supervised/nohup.out 2>&1 &
 ```
 
+더 안정적인 user-level 서비스가 필요하면 포함된 systemd unit을 사용할 수 있습니다.
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp ./scripts/systemd/tmux-web-manager.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now tmux-web-manager.service
+```
+
 ## Native install
 
 Docker 없이 standalone prefix에 설치:
@@ -127,7 +136,30 @@ docker compose up --build
 - `POST /api/sessions`
 - `PUT /api/sessions/:backendId/:sessionId`
 - `DELETE /api/sessions/:backendId/:sessionId`
+- `POST /api/relay/send-text`
 - `WS /ws/terminal?backendId=...&sessionId=...`
+
+Relay 사용 예시:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/send-text \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourceSessionName": "source-session",
+    "targetBackendName": "server-b",
+    "targetSessionName": "target-session",
+    "text": "echo hello"
+  }'
+```
+
+relay 감사 로그는 다음 파일에 기록됩니다:
+
+```bash
+$DATA_DIR/central/relay-log.jsonl
+```
+
+relay 요청은 backend/session 이름만 사용하므로 감사 로그에서도 source/target을 사람이 읽기 쉬운 형태로 남길 수 있습니다.
 
 tmux backend server:
 

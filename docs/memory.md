@@ -34,6 +34,11 @@
 - 프로젝트 사용자 노출 이름을 `tmux-web-manager`로 정리하고 현재 디렉터리를 독립 Git 저장소로 초기화
 - backend에 session name 기준 `send-text + Enter` API 추가 및 실동작 검증 완료
 - backend edit modal 에서 token을 password 형태로 prefill 하되 copy/cut/clipboard shortcut 차단을 추가
+- hub relay send-text API를 추가해 backend A/B 사이를 중앙에서 text tunnel 방식으로 중계 가능하게 함
+- relay 사용법을 README에 문서화하고 relay 감사 로그(jsonl) 저장 + hostname 기반 기본 backend 이름 적용
+- repo 관리형 `systemd --user` 서비스 유닛 추가
+- relay 감사 로그에 사람이 읽을 수 있는 backend 이름과 source session 이름도 함께 기록
+- relay 로그 timestamp는 ISO 8601 UTC로 유지하고, sourceSessionId 기준 sourceSessionName 자동 보완 로직 추가
 
 ### Naming
 
@@ -43,7 +48,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`25 passed`)
+- `npm test`: pass (`30 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (LAN bind smoke on `0.0.0.0`)
@@ -52,6 +57,9 @@
 - session rename via UI/API flow: pass (`tfw-ui-edit-test-a` -> `tfw-ui-edit-test-b`)
 - supervised main launcher: pass (`bash ./scripts/run-main-supervised.sh`, 현재 `3610593/3610601` 프로세스로 동작)
 - backend send-text API: pass (`POST /api/sessions/by-name/twm-send-text-test/send-text` -> `test` line written)
+- hub relay send-text API: pass (`POST /api/relay/send-text` -> target tmux session file에 `test`)
+- relay audit log: pass (`relay-log.jsonl` 에 source/target/text 기록)
+- hostname default backend name: pass (`backend_name == hostname == dsseo-desktop`)
 - native install: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass

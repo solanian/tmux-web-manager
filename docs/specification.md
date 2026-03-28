@@ -26,10 +26,14 @@
 - 시작 시 local backend 를 기본 registry entry 로 자동 등록할 수 있어야 함
 - 기본 central bind host 는 override 가 없으면 `0.0.0.0` 이어야 하며 LAN 접속을 허용해야 함
 - backend add/update 시 health check 를 수행해 연결 가능한 backend 만 저장해야 함
+- backend/server 기본 이름은 명시적 override가 없으면 해당 서버의 hostname 이어야 함
 - 여러 backend 의 session 목록을 합쳐 단일 sidebar payload 로 제공해야 함
 - session 생성 시 `backendId`, `path`, optional `sessionName` 을 대상 `agent` 에 전달해야 함
 - session 이름 수정(rename) 요청을 대상 `agent` 에 전달할 수 있어야 함
 - session 삭제 시 대상 `agent` 의 session delete API 를 호출해야 함
+- hub 는 tunnel/relay 역할로 `sourceBackendName`, `sourceSessionName`, `targetBackendName`, `targetSessionName`, `text` 조합의 요청을 받아 target session에 text 입력을 전달할 수 있어야 함
+- hub relay 요청은 source/target backend 이름, source/target session 이름, text, time 정보를 감사 로그로 남길 수 있어야 함
+- relay 로그 `timestamp`는 ISO 8601 UTC 형식이어야 함
 - 중앙 terminal WebSocket 은 대상 `agent` 의 terminal WebSocket 을 proxy 해야 함
 - web UI 는 backend 관리 폼, session 생성 폼, session 목록, xterm.js terminal, 하단 composer UI 를 제공해야 함
 - desktop 에서는 sidebar 가 좌측에 고정된 2-column 레이아웃이어야 함
@@ -65,6 +69,7 @@
   - `POST /api/sessions`
   - `PUT /api/sessions/:backendId/:sessionId`
   - `DELETE /api/sessions/:backendId/:sessionId`
+  - `POST /api/relay/send-text` (`targetBackendName` + `targetSessionName`)
   - `WS /ws/terminal`
 
 ## Agent Spec
@@ -97,6 +102,7 @@
   - `PREFIX/bin/run-sub.sh`
 - 설치 후 `PATH` 와 `.env` 파일만으로 `hub` / `agent` 실행이 가능해야 함
 - 장시간 운영용 실행은 tmux session life-cycle 에 종속되지 않는 supervisor/autorestart 경로를 제공할 수 있어야 함
+- 장시간 운영용 기본 경로로는 user-level service manager(systemd --user 등)를 사용할 수 있어야 함
 
 ## Constraints
 

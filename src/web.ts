@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
 
 import WebSocket, { WebSocketServer } from 'ws';
 
@@ -18,6 +20,20 @@ function authHeaders(backend: BackendRecord): Record<string, string> {
     return {};
   }
   return { Authorization: `Bearer ${backend.authToken}` };
+}
+
+function getBackendByName(store: BackendRegistryStore, name: string): BackendRecord | undefined {
+  return store.all().find((backend) => backend.name === name);
+}
+
+export function findSessionNameById(
+  sessions: Array<{ id: string; tmuxSessionName: string }>,
+  sessionId: string | undefined,
+): string | undefined {
+  if (!sessionId) {
+    return undefined;
+  }
+  return sessions.find((session) => session.id === sessionId)?.tmuxSessionName;
 }
 
 async function fetchJson<T>(backend: BackendRecord, pathname: string, init?: RequestInit): Promise<T> {
@@ -84,6 +100,51 @@ async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, u
     return {};
   }
   return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function appendJsonLine(filePath: string, payload: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, `${JSON.stringify(payload)}\n`);
+}
+
+export interface RelaySendTextRequest {
+  sourceBackendName: string;
+  sourceSessionName: string;
+  targetBackendName: string;
+  targetSessionName: string;
+  text: string;
+}
+
+export function normalizeRelaySendTextRequest(
+  body: Record<string, unknown>,
+): RelaySendTextRequest {
+  const sourceBackendName = String(body.sourceBackendName || '').trim();
+  if (!sourceBackendName) {
+    throw new Error('sourceBackendName is required');
+  }
+  const targetBackendName = String(body.targetBackendName || '').trim();
+  const targetSessionName = String(body.targetSessionName || '').trim();
+  const text = String(body.text || '');
+  if (!targetBackendName) {
+    throw new Error('targetBackendName is required');
+  }
+  if (!targetSessionName) {
+    throw new Error('targetSessionName is required');
+  }
+  if (!text) {
+    throw new Error('text is required');
+  }
+  const sourceSessionName = String(body.sourceSessionName || '').trim();
+  if (!sourceSessionName) {
+    throw new Error('sourceSessionName is required');
+  }
+  return {
+    sourceBackendName,
+    sourceSessionName,
+    targetBackendName,
+    targetSessionName,
+    text,
+  };
 }
 
 export function buildSessionPathSummary(session: Pick<AggregatedSessionRecord, 'requestedPath' | 'currentPath'>): string {
@@ -1114,6 +1175,7 @@ export function renderHtmlPage(): string {
 }
 
 export function createWebServer(config: AppConfig, store: BackendRegistryStore) {
+  const relayLogPath = path.join(config.centralDataDir, 'relay-log.jsonl');
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -1195,6 +1257,36 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
           }),
         });
         sendJson(res, 201, payload);
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/send-text') {
+        const body = await readJsonBody(req);
+        const relayRequest = normalizeRelaySendTextRequest(body);
+        const targetBackend = getBackendByName(store, relayRequest.targetBackendName);
+        if (!targetBackend) {
+          sendJson(res, 404, { error: `Unknown backend name: ${relayRequest.targetBackendName}` });
+          return;
+        }
+        const sourceBackend = getBackendByName(store, relayRequest.sourceBackendName);
+        const payload = await fetchJson<{ ok: true }>(
+          targetBackend,
+          `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-text`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ text: relayRequest.text }),
+          },
+        );
+        appendJsonLine(relayLogPath, {
+          timestamp: new Date().toISOString(),
+          sourceBackendName: sourceBackend?.name || relayRequest.sourceBackendName,
+          sourceSessionName: relayRequest.sourceSessionName,
+          targetBackendId: targetBackend.id,
+          targetBackendName: targetBackend.name,
+          targetSessionName: relayRequest.targetSessionName,
+          text: relayRequest.text,
+        });
+        sendJson(res, 200, payload);
         return;
       }
 

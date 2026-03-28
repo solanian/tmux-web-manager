@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSessionPathSummary,
   createWebServer,
+  findSessionNameById,
   formatRelativeTime,
+  normalizeRelaySendTextRequest,
   renderHtmlPage,
   sortAggregatedSessionsByRecentActivity,
 } from '../src/web.js';
@@ -66,6 +68,62 @@ describe('sortAggregatedSessionsByRecentActivity', () => {
     ]);
 
     expect(sessions.map((session) => session.tmuxSessionName)).toEqual(['newer', 'older']);
+  });
+});
+
+describe('findSessionNameById', () => {
+  it('returns the tmux session name for a matching source session id', () => {
+    expect(
+      findSessionNameById(
+        [
+          { id: 'source-1', tmuxSessionName: 'alpha' },
+          { id: 'source-2', tmuxSessionName: 'beta' },
+        ],
+        'source-2',
+      ),
+    ).toBe('beta');
+  });
+});
+
+describe('normalizeRelaySendTextRequest', () => {
+  it('normalizes a relay send-text request body', () => {
+    expect(
+      normalizeRelaySendTextRequest({
+        sourceBackendName: 'server-a',
+        sourceSessionName: 'source-session-name',
+        targetBackendName: 'server-b',
+        targetSessionName: 'session-b',
+        text: 'echo test',
+      }),
+    ).toEqual({
+      sourceBackendName: 'server-a',
+      sourceSessionName: 'source-session-name',
+      targetBackendName: 'server-b',
+      targetSessionName: 'session-b',
+      text: 'echo test',
+    });
+  });
+
+  it('rejects missing target backend id', () => {
+    expect(() =>
+      normalizeRelaySendTextRequest({
+        sourceBackendName: 'server-a',
+        sourceSessionName: 'source-session-name',
+        targetSessionName: 'session-b',
+        text: 'echo test',
+      }),
+    ).toThrow(/targetBackendName is required/);
+  });
+
+  it('rejects missing source backend name', () => {
+    expect(() =>
+      normalizeRelaySendTextRequest({
+        sourceSessionName: 'source-session-name',
+        targetBackendName: 'server-b',
+        targetSessionName: 'session-b',
+        text: 'echo test',
+      }),
+    ).toThrow(/sourceBackendName is required/);
   });
 });
 
