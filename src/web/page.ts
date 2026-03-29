@@ -7,7 +7,7 @@ export function renderHtmlPage(): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>tmux fleet web</title>
+  <title>tmux manager</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
   <style>
 ${PAGE_STYLES}  </style>
@@ -18,7 +18,7 @@ ${PAGE_STYLES}  </style>
   <div id="app">
     <aside id="sidebar">
       <div id="sidebarHeader">
-        <h1 id="sidebarTitle">tmux fleet</h1>
+        <h1 id="sidebarTitle">tmux manager</h1>
         <button id="sidebarClose" class="iconButton" type="button" aria-label="Close sidebar">✕</button>
       </div>
       <div class="sidebarTabs" role="tablist" aria-label="Sidebar tabs">

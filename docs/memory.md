@@ -13,6 +13,8 @@
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
 - `src/web/page.ts` 안의 인라인 CSS/클라이언트 스크립트를 `src/web/page-styles.ts`, `src/web/page-script.ts` 로 분리해 page 조립 책임만 남김
 - `src/web/page-script.ts` 를 DOM/init, UI helpers, list rendering, runtime bindings 경계의 하위 모듈로 분리해 script assembly facade 로 축소
+- `src/web/page-script-render.ts` 를 backend options/backend list/session list/terminal 경계로 분리하고, `src/web/page-script-runtime.ts` 를 state load/forms/events/terminal bindings/boot 경계로 분리
+- UI title/sidebar heading 에 남아 있던 `tmux fleet` 표기를 `tmux manager` 로 정리
 - relay 대상 식별 충돌을 막기 위해 backend registry 저장 시 backend 이름 unique 제약(대소문자 무시)을 추가
 - relay 감사 로그에 `result`(`ok`/`error`)와 실패 `error` 메시지를 함께 기록하도록 보강
 
