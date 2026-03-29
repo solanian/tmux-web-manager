@@ -29,6 +29,10 @@ function writeJsonFile(filePath: string, payload: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
 }
 
+function normalizeBackendName(name: string): string {
+  return name.trim().toLocaleLowerCase();
+}
+
 export class BackendRegistryStore {
   private readonly filePath: string;
 
@@ -57,6 +61,13 @@ export class BackendRegistryStore {
 
   save(input: { id?: string; name: string; baseUrl: string; authToken?: string }): BackendRecord {
     const payload = this.read();
+    const normalizedName = normalizeBackendName(input.name);
+    const duplicate = payload.backends.find(
+      (backend) => backend.id !== input.id && normalizeBackendName(backend.name) === normalizedName,
+    );
+    if (duplicate) {
+      throw new Error(`Backend name already exists: ${input.name}`);
+    }
     const now = new Date().toISOString();
     const next: BackendRecord = {
       id: input.id || crypto.randomUUID(),

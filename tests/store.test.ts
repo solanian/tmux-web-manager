@@ -19,6 +19,45 @@ describe('BackendRegistryStore', () => {
     const reloaded = new BackendRegistryStore(root);
     expect(reloaded.getById(created.id)?.baseUrl).toBe('http://127.0.0.1:8788');
   });
+
+  it('rejects duplicate backend names regardless of case', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-backends-unique-'));
+    const store = new BackendRegistryStore(root);
+
+    store.save({
+      name: 'Mac Mini',
+      baseUrl: 'http://127.0.0.1:8788',
+      authToken: 'secret',
+    });
+
+    expect(() =>
+      store.save({
+        name: 'mac mini',
+        baseUrl: 'http://127.0.0.1:9797',
+        authToken: 'secret-2',
+      }),
+    ).toThrow(/Backend name already exists/);
+  });
+
+  it('allows updating an existing backend without tripping the unique-name check', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-backends-update-'));
+    const store = new BackendRegistryStore(root);
+    const created = store.save({
+      name: 'local',
+      baseUrl: 'http://127.0.0.1:8788',
+      authToken: 'secret',
+    });
+
+    const updated = store.save({
+      id: created.id,
+      name: 'LOCAL',
+      baseUrl: 'http://127.0.0.1:9898',
+      authToken: 'secret-2',
+    });
+
+    expect(updated.id).toBe(created.id);
+    expect(updated.baseUrl).toBe('http://127.0.0.1:9898');
+  });
 });
 
 describe('ManagedSessionStore', () => {
@@ -39,4 +78,3 @@ describe('ManagedSessionStore', () => {
     expect(store.all()).toHaveLength(0);
   });
 });
-

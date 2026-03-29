@@ -3,6 +3,7 @@
 ## Hub / main
 
 - backend registry 추가/수정/삭제/영속 저장
+- backend/server 이름 unique 제약(대소문자 무시)
 - 여러 agent backend 의 session 목록 집계와 sidebar payload 구성
 - session 생성 시 backend 선택, 작업 경로, optional session 이름 전달
 - session rename 시 backend/session id 와 새 session 이름 전달
@@ -85,7 +86,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`32 passed`)
+- `npm test`: pass (`34 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

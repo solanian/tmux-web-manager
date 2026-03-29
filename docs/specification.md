@@ -25,6 +25,7 @@
 - backend registry 를 파일에 영속 저장할 수 있어야 함
 - 시작 시 local backend 를 기본 registry entry 로 자동 등록할 수 있어야 함
 - 기본 central bind host 는 override 가 없으면 `0.0.0.0` 이어야 하며 LAN 접속을 허용해야 함
+- relay/운영 식별 충돌을 막기 위해 backend/server 이름은 registry 전체에서 unique 해야 함
 - backend add/update 시 health check 를 수행해 연결 가능한 backend 만 저장해야 함
 - backend/server 기본 이름은 명시적 override가 없으면 해당 서버의 hostname 이어야 함
 - 여러 backend 의 session 목록을 합쳐 단일 sidebar payload 로 제공해야 함
