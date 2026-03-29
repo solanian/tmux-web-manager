@@ -133,6 +133,9 @@ docker compose up --build
 중앙 web server:
 
 - `GET /api/state`
+- `GET /api/panes`
+- `GET /api/orchestration/panes`
+- `GET /api/orchestration/panes/resolve?backendName=...&label=...`
 - `POST /api/backends`
 - `PUT /api/backends/:id`
 - `DELETE /api/backends/:id`
@@ -140,6 +143,16 @@ docker compose up --build
 - `PUT /api/sessions/:backendId/:sessionId`
 - `DELETE /api/sessions/:backendId/:sessionId`
 - `POST /api/relay/send-text`
+- `POST /api/relay/send-text-no-enter`
+- `POST /api/relay/send-keys`
+- `POST /api/relay/message`
+- `POST /api/relay/read`
+- `POST /api/relay/panes/read`
+- `POST /api/relay/panes/send-text`
+- `POST /api/relay/panes/send-text-no-enter`
+- `POST /api/relay/panes/send-keys`
+- `POST /api/relay/panes/message`
+- `POST /api/relay/panes/label`
 - `WS /ws/terminal?backendId=...&sessionId=...`
 
 Relay 사용 예시:
@@ -164,12 +177,87 @@ $DATA_DIR/central/relay-log.jsonl
 
 relay 요청은 backend/session 이름만 사용하므로 감사 로그에서도 source/target을 사람이 읽기 쉬운 형태로 남길 수 있습니다.
 
+Pane orchestration discovery 예시:
+
+```bash
+curl http://127.0.0.1:8787/api/orchestration/panes
+```
+
+이 응답에는 다음이 포함됩니다:
+
+- `targetIdFormat: "backendName/paneId"`
+- `readBeforeWrite`
+- relay endpoint 안내
+- `backendName`, `paneId`, `sessionName`, `location`, `label`, `currentCommand`, `currentPath` 가 들어간 pane summary
+
+Pane resolve 예시:
+
+```bash
+curl "http://127.0.0.1:8787/api/orchestration/panes/resolve?backendName=server-b&label=reviewer"
+```
+
+Pane relay read 예시:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/read \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetLabel": "reviewer",
+    "lines": 20
+  }'
+```
+
+Pane relay message 예시:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/message \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetLabel": "reviewer",
+    "text": "Please review the failing test output."
+  }'
+```
+
+Pane label 설정 예시:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/label \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetPaneId": "%12",
+    "label": "reviewer"
+  }'
+```
+
+명시적인 pane label이 없으면 session 이름 기반 숫자 suffix 형식(`build-1`, `build-2`)으로 자동 label이 생성되며, 이 자동 label도 discovery/resolve에서 그대로 사용할 수 있습니다.
+
 tmux backend server:
 
 - `GET /api/health`
 - `GET /api/sessions`
+- `GET /api/panes`
+- `GET /api/panes/resolve/:label`
 - `POST /api/sessions`
 - `POST /api/sessions/by-name/:sessionName/send-text`
+- `POST /api/sessions/by-name/:sessionName/send-text-no-enter`
+- `POST /api/sessions/by-name/:sessionName/send-keys`
+- `POST /api/sessions/by-name/:sessionName/message`
+- `GET /api/sessions/by-name/:sessionName/read`
+- `POST /api/panes/by-id/:paneId/label`
+- `POST /api/panes/by-id/:paneId/send-text`
+- `POST /api/panes/by-id/:paneId/send-text-no-enter`
+- `POST /api/panes/by-id/:paneId/send-keys`
+- `POST /api/panes/by-id/:paneId/message`
+- `GET /api/panes/by-id/:paneId/read`
 - `PUT /api/sessions/:id`
 - `DELETE /api/sessions/:id`
 - `WS /ws/sessions/:id`

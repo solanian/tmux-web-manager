@@ -44,6 +44,7 @@
   - hub pane relay에서 `targetLabel` / `sourceLabel` 허용
 - pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 범위 추가
 - pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 구현 완료 (`build-1`, `build-2` ...)
+- README / README-ko 에 pane discovery, label resolve, pane relay 사용 예시 추가
 - relay 감사 로그에 operation 종류와 payload 종류(`text`, `keys`, `lines`)가 남도록 보강
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
@@ -58,6 +59,7 @@
 
 - `npm run build`: pass
 - `npm test`: pass (`59 passed`)
+- live smoke: pass (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`)
 
 ## 2026-03-28
 

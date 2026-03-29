@@ -127,6 +127,9 @@ This starts:
 Central web server:
 
 - `GET /api/state`
+- `GET /api/panes`
+- `GET /api/orchestration/panes`
+- `GET /api/orchestration/panes/resolve?backendName=...&label=...`
 - `POST /api/backends`
 - `PUT /api/backends/:id`
 - `DELETE /api/backends/:id`
@@ -134,6 +137,16 @@ Central web server:
 - `PUT /api/sessions/:backendId/:sessionId`
 - `DELETE /api/sessions/:backendId/:sessionId`
 - `POST /api/relay/send-text`
+- `POST /api/relay/send-text-no-enter`
+- `POST /api/relay/send-keys`
+- `POST /api/relay/message`
+- `POST /api/relay/read`
+- `POST /api/relay/panes/read`
+- `POST /api/relay/panes/send-text`
+- `POST /api/relay/panes/send-text-no-enter`
+- `POST /api/relay/panes/send-keys`
+- `POST /api/relay/panes/message`
+- `POST /api/relay/panes/label`
 - `WS /ws/terminal?backendId=...&sessionId=...`
 
 Relay usage example:
@@ -158,12 +171,87 @@ $DATA_DIR/central/relay-log.jsonl
 
 The relay request uses backend/session names only so the audit log always records a human-readable source and target.
 
+Pane orchestration discovery example:
+
+```bash
+curl http://127.0.0.1:8787/api/orchestration/panes
+```
+
+This returns:
+
+- `targetIdFormat: "backendName/paneId"`
+- `readBeforeWrite`
+- relay endpoint hints
+- pane summaries with `backendName`, `paneId`, `sessionName`, `location`, `label`, `currentCommand`, and `currentPath`
+
+Pane resolve example:
+
+```bash
+curl "http://127.0.0.1:8787/api/orchestration/panes/resolve?backendName=server-b&label=reviewer"
+```
+
+Pane relay read example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/read \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetLabel": "reviewer",
+    "lines": 20
+  }'
+```
+
+Pane relay message example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/message \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetLabel": "reviewer",
+    "text": "Please review the failing test output."
+  }'
+```
+
+Pane label example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/relay/panes/label \
+  -H 'content-type: application/json' \
+  -d '{
+    "sourceBackendName": "server-a",
+    "sourcePaneId": "%1",
+    "targetBackendName": "server-b",
+    "targetPaneId": "%12",
+    "label": "reviewer"
+  }'
+```
+
+If a pane has no explicit label, the system derives one from the session name with a numeric suffix such as `build-1`, `build-2`. Those derived labels also work for discovery and resolve.
+
 tmux backend server:
 
 - `GET /api/health`
 - `GET /api/sessions`
+- `GET /api/panes`
+- `GET /api/panes/resolve/:label`
 - `POST /api/sessions`
 - `POST /api/sessions/by-name/:sessionName/send-text`
+- `POST /api/sessions/by-name/:sessionName/send-text-no-enter`
+- `POST /api/sessions/by-name/:sessionName/send-keys`
+- `POST /api/sessions/by-name/:sessionName/message`
+- `GET /api/sessions/by-name/:sessionName/read`
+- `POST /api/panes/by-id/:paneId/label`
+- `POST /api/panes/by-id/:paneId/send-text`
+- `POST /api/panes/by-id/:paneId/send-text-no-enter`
+- `POST /api/panes/by-id/:paneId/send-keys`
+- `POST /api/panes/by-id/:paneId/message`
+- `GET /api/panes/by-id/:paneId/read`
 - `PUT /api/sessions/:id`
 - `DELETE /api/sessions/:id`
 - `WS /ws/sessions/:id`

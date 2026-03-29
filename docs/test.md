@@ -103,6 +103,7 @@
 - `export PATH=/workspace/sandbox/.local/bin:$PATH && /tmp/tmux-web-manager-sub/bin/run-sub.sh`
 - `node --input-type=module ...` (central `/ws/terminal` proxy smoke)
 - `python3 ...` (hub API 기준 remote agent backend add + remote session create/delete smoke)
+- `python3 ...` (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read` live smoke)
 
 ## Latest Results
 
@@ -119,6 +120,7 @@
 - hub relay send-text API: pass (`POST /api/relay/send-text` -> `/tmp/twm-hub-relay-test.out`에 `test`)
 - relay audit log: pass (`$DATA_DIR/central/relay-log.jsonl` 기록 확인)
 - hostname default backend name: pass (`backend_name == hostname`)
+- orchestration pane discovery/resolve/read live smoke: pass
 - native install artifact generation: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass
