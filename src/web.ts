@@ -307,6 +307,8 @@ export function renderHtmlPage(): string {
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .field input, .field select { width: 100%; min-height: 38px; border-radius: 10px; border: 1px solid var(--border); background: #0d1520; color: var(--text); padding: 8px 10px; }
     .fieldHint { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .formError { margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #7f1d1d; background: rgba(127, 29, 29, 0.18); color: #fecaca; font-size: 13px; }
+    .formError[hidden] { display: none !important; }
     .row { display: flex; gap: 8px; }
     .row > * { flex: 1; }
     .list { display: flex; flex-direction: column; gap: 8px; }
@@ -436,6 +438,7 @@ export function renderHtmlPage(): string {
       </div>
       <form id="backendForm">
         <input type="hidden" id="backendId" />
+        <div id="backendFormError" class="formError" hidden></div>
         <div class="field"><label for="backendName">Name</label><input id="backendName" required /></div>
         <div class="field"><label for="backendBaseUrl">Base URL</label><input id="backendBaseUrl" placeholder="http://host:8788" required /></div>
         <div class="field">
@@ -459,6 +462,7 @@ export function renderHtmlPage(): string {
       <form id="sessionForm">
         <input type="hidden" id="sessionEditingId" />
         <input type="hidden" id="sessionEditingBackendId" />
+        <div id="sessionFormError" class="formError" hidden></div>
         <div class="field" id="sessionBackendField"><label for="sessionBackendId">Backend</label><select id="sessionBackendId" required></select></div>
         <div class="field" id="sessionPathField"><label for="sessionPath">Path</label><input id="sessionPath" placeholder="/absolute/path" required /></div>
         <div class="field"><label for="sessionName">Session Name</label><input id="sessionName" placeholder="optional" /></div>
@@ -508,13 +512,16 @@ export function renderHtmlPage(): string {
     const confirmModalCancel = document.getElementById('confirmModalCancel');
     const hoverTooltip = document.getElementById('hoverTooltip');
     const backendForm = document.getElementById('backendForm');
+    const backendFormError = document.getElementById('backendFormError');
     const backendIdInput = document.getElementById('backendId');
     const backendNameInput = document.getElementById('backendName');
     const backendBaseUrlInput = document.getElementById('backendBaseUrl');
     const backendAuthTokenInput = document.getElementById('backendAuthToken');
+    const backendSubmit = document.getElementById('backendSubmit');
     const backendResetButton = document.getElementById('backendReset');
     const backendList = document.getElementById('backendList');
     const sessionForm = document.getElementById('sessionForm');
+    const sessionFormError = document.getElementById('sessionFormError');
     const sessionEditingId = document.getElementById('sessionEditingId');
     const sessionEditingBackendId = document.getElementById('sessionEditingBackendId');
     const sessionBackendField = document.getElementById('sessionBackendField');
@@ -769,6 +776,10 @@ export function renderHtmlPage(): string {
       backendAuthTokenInput.value = '';
       backendAuthTokenInput.required = true;
       backendAuthTokenInput.placeholder = 'paste the token from the agent host';
+      backendFormError.hidden = true;
+      backendFormError.textContent = '';
+      backendSubmit.textContent = 'Save Server';
+      backendSubmit.disabled = false;
     }
 
     function protectSensitiveInput(input) {
@@ -798,6 +809,9 @@ export function renderHtmlPage(): string {
       sessionNameInput.required = false;
       sessionSubmitButton.textContent = 'Create Session';
       sessionModalTitle.textContent = 'Create Session';
+      sessionFormError.hidden = true;
+      sessionFormError.textContent = '';
+      sessionSubmitButton.disabled = false;
     }
 
     function renderBackendOptions() {
@@ -1005,20 +1019,32 @@ export function renderHtmlPage(): string {
 
     backendForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const body = JSON.stringify({
-        name: backendNameInput.value,
-        baseUrl: backendBaseUrlInput.value,
-        ...(backendAuthTokenInput.value ? { authToken: backendAuthTokenInput.value } : {}),
-      });
-      const backendId = backendIdInput.value.trim();
-      if (backendId) {
-        await api('/api/backends/' + encodeURIComponent(backendId), { method: 'PUT', body });
-      } else {
-        await api('/api/backends', { method: 'POST', body });
+      backendFormError.hidden = true;
+      backendFormError.textContent = '';
+      backendSubmit.disabled = true;
+      backendSubmit.textContent = 'Saving...';
+      try {
+        const body = JSON.stringify({
+          name: backendNameInput.value,
+          baseUrl: backendBaseUrlInput.value,
+          ...(backendAuthTokenInput.value ? { authToken: backendAuthTokenInput.value } : {}),
+        });
+        const backendId = backendIdInput.value.trim();
+        if (backendId) {
+          await api('/api/backends/' + encodeURIComponent(backendId), { method: 'PUT', body });
+        } else {
+          await api('/api/backends', { method: 'POST', body });
+        }
+        resetBackendForm();
+        closeModal();
+        await loadState();
+      } catch (error) {
+        backendFormError.textContent = String(error);
+        backendFormError.hidden = false;
+      } finally {
+        backendSubmit.disabled = false;
+        backendSubmit.textContent = 'Save Server';
       }
-      resetBackendForm();
-      closeModal();
-      await loadState();
     });
 
     backendResetButton.addEventListener('click', () => {
@@ -1029,29 +1055,41 @@ export function renderHtmlPage(): string {
     sessionForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       setSidebarTab('sessions');
-      if (sessionEditingId.value && sessionEditingBackendId.value) {
-        await api(
-          '/api/sessions/' + encodeURIComponent(sessionEditingBackendId.value) + '/' + encodeURIComponent(sessionEditingId.value),
-          {
-            method: 'PUT',
+      sessionFormError.hidden = true;
+      sessionFormError.textContent = '';
+      sessionSubmitButton.disabled = true;
+      sessionSubmitButton.textContent = sessionEditingId.value ? 'Saving...' : 'Creating...';
+      try {
+        if (sessionEditingId.value && sessionEditingBackendId.value) {
+          await api(
+            '/api/sessions/' + encodeURIComponent(sessionEditingBackendId.value) + '/' + encodeURIComponent(sessionEditingId.value),
+            {
+              method: 'PUT',
+              body: JSON.stringify({
+                sessionName: sessionNameInput.value,
+              }),
+            },
+          );
+        } else {
+          await api('/api/sessions', {
+            method: 'POST',
             body: JSON.stringify({
+              backendId: sessionBackendId.value,
+              path: sessionPathInput.value,
               sessionName: sessionNameInput.value,
             }),
-          },
-        );
-      } else {
-        await api('/api/sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            backendId: sessionBackendId.value,
-            path: sessionPathInput.value,
-            sessionName: sessionNameInput.value,
-          }),
-        });
+          });
+        }
+        resetSessionForm();
+        closeModal();
+        await loadState();
+      } catch (error) {
+        sessionFormError.textContent = String(error);
+        sessionFormError.hidden = false;
+      } finally {
+        sessionSubmitButton.disabled = false;
+        sessionSubmitButton.textContent = sessionEditingId.value ? 'Save Session' : 'Create Session';
       }
-      resetSessionForm();
-      closeModal();
-      await loadState();
     });
 
     sessionResetButton.addEventListener('click', () => {

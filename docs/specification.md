@@ -44,6 +44,7 @@
 - backend create/edit modal 에는 agent token 입력 UI가 명확히 보여야 하며, remote backend 등록 시 필수값처럼 안내되어야 함
 - backend edit modal 은 기존 token 값을 password 형태로 prefill 할 수 있어야 함
 - backend token 입력 UI는 일반 브라우저 복사 동작(`copy`, `cut`, `Ctrl/Cmd+C`)으로 token이 클립보드에 복사되지 않도록 보호되어야 함
+- backend/session modal submit 실패 시 원인을 사용자에게 즉시 보여주는 에러 피드백이 있어야 함
 - sidebar 의 server/session 목록은 `cmux` 같은 dense list 감성으로 compact 하게 표시되어야 함
 - session list 에서는 session 이름이 가장 눈에 띄어야 하며 server tag 는 한 줄 아래에 배치되어야 함
 - session list 의 경로 정보는 중복 없이 표시되어야 하며 `requestedPath` 와 `currentPath` 가 같으면 cwd 를 반복 표시하지 않아야 함

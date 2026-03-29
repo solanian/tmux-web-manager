@@ -139,6 +139,8 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('id="confirmModal"');
     expect(html).toContain('id="sessionEditingId"');
     expect(html).toContain('id="sessionEditingBackendId"');
+    expect(html).toContain('id="backendFormError"');
+    expect(html).toContain('id="sessionFormError"');
     expect(html).toContain('Agent Token');
     expect(html).toContain('paste the token from the agent host');
     expect(html).toContain('$DATA_DIR/backend/agent-auth-token');
@@ -166,6 +168,8 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('function buildSessionPathSummary(session)');
     expect(html).toContain('function protectSensitiveInput(input)');
     expect(html).toContain("protectSensitiveInput(backendAuthTokenInput);");
+    expect(html).toContain("backendFormError.hidden = false;");
+    expect(html).toContain("sessionFormError.hidden = false;");
     expect(html).toContain('id="hoverTooltip"');
     expect(html).toContain('function attachHoverTooltip(element, text)');
     expect(html).toContain('attachHoverTooltip(tertiary, fullPathSummary);');
