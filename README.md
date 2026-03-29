@@ -84,6 +84,39 @@ systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```
 
+## Agent-local CLI wrapper
+
+The repository also ships a thin CLI wrapper for agent shells and tmux panes.
+
+It runs locally on the agent host, but it talks to the hub relay APIs under the hood.
+
+Examples:
+
+```bash
+npm run bridge -- panes
+npm run bridge -- resolve server-b reviewer
+npm run bridge -- read server-b reviewer 20
+npm run bridge -- message server-b reviewer "Please review the failing test output."
+```
+
+When running inside tmux, the wrapper can use `$TMUX_PANE` as the default source pane.
+
+Useful environment variables:
+
+- `TWM_BASE_URL` or `BASE_URL`
+- `TWM_SOURCE_BACKEND`
+- `TWM_SOURCE_PANE`
+- `TWM_SOURCE_LABEL`
+
+Example:
+
+```bash
+export TWM_BASE_URL=http://127.0.0.1:8787
+export TWM_SOURCE_BACKEND=server-a
+export TWM_SOURCE_PANE=%1
+npm run bridge -- read server-b reviewer 20
+```
+
 ## Native install
 
 Install into a standalone prefix without Docker:

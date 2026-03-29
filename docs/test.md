@@ -26,6 +26,7 @@
 - native install 후 `run-main.sh` 가 실행 명령을 보존
 - 설치된 `run-main.sh` 로 실제 central web + local backend 기동
 - 설치된 `run-main.sh` 에서 remote agent backend 등록 및 remote session attach 가능
+- agent-local CLI wrapper가 hub-backed pane/session orchestration 명령을 생성
 
 ## Agent / sub
 
@@ -57,6 +58,7 @@
 
 - install script 가 env/run 파일을 올바르게 생성
 - 설치 prefix 아래 `app/dist`, `app/node_modules`, `etc`, `bin` 산출물 생성
+- 설치 prefix 아래 `bin/twm-bridge` 생성
 - restart-loop launcher script 가 존재하고 long-running main 실행에 사용 가능
 - user-level systemd service unit 이 존재하고 `systemctl --user enable --now` 가능
 
@@ -104,11 +106,12 @@
 - `node --input-type=module ...` (central `/ws/terminal` proxy smoke)
 - `python3 ...` (hub API 기준 remote agent backend add + remote session create/delete smoke)
 - `python3 ...` (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read` live smoke)
+- `node dist/bridge-cli.js ...` (agent-local CLI wrapper smoke)
 
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`59 passed`)
+- `npm test`: pass (`66 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)
@@ -121,6 +124,7 @@
 - relay audit log: pass (`$DATA_DIR/central/relay-log.jsonl` 기록 확인)
 - hostname default backend name: pass (`backend_name == hostname`)
 - orchestration pane discovery/resolve/read live smoke: pass
+- `twm-bridge` CLI smoke (`panes`, `resolve`, `read`, `send`, `type`, `keys`, `message`): pass
 - native install artifact generation: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass

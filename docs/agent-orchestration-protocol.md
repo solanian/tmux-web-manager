@@ -392,6 +392,60 @@ Prefer pane-level relay over session-level relay.
 Do not send blind writes.
 ```
 
+## CLI Wrapper Usage
+
+When available, agents may use the local CLI wrapper instead of constructing raw HTTP requests.
+
+Preferred commands:
+
+```bash
+twm-bridge panes
+twm-bridge resolve server-b reviewer
+twm-bridge read server-b reviewer 20
+twm-bridge type server-b reviewer "review src/auth.ts"
+twm-bridge send server-b reviewer "npm test"
+twm-bridge keys server-b reviewer Enter
+twm-bridge message server-b reviewer "Please review the failing test output."
+twm-bridge label server-b %12 reviewer
+```
+
+### Source context
+
+The wrapper is intended to run inside an agent shell or tmux pane.
+
+It can infer source identity from:
+
+- `TWM_SOURCE_BACKEND`
+- `TWM_SOURCE_PANE`
+- `TWM_SOURCE_LABEL`
+- `$TMUX_PANE`
+
+Typical setup:
+
+```bash
+export TWM_BASE_URL=http://127.0.0.1:8787
+export TWM_SOURCE_BACKEND=server-a
+export TWM_SOURCE_PANE=%1
+```
+
+Then the agent can simply run:
+
+```bash
+twm-bridge read server-b reviewer 20
+twm-bridge message server-b reviewer "Please review the failing test output."
+```
+
+### CLI behavior
+
+- `type` -> `send-text-no-enter`
+- `send` -> `send-text`
+- `keys` -> `send-keys`
+- `message` -> `message`
+- `read` -> `read`
+- `resolve` -> label to `backendName/paneId`
+
+The CLI is a thin client over the hub relay APIs.
+
 ## Relationship to smux
 
 This protocol intentionally follows the spirit of `smux`:

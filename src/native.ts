@@ -68,3 +68,17 @@ export function buildRunScript(mode: 'main' | 'sub'): string {
     '',
   ].join('\n');
 }
+
+export function buildBridgeScript(): string {
+  return [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'PREFIX="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"',
+    'set -a',
+    '. "$PREFIX/etc/tmux-web-manager.env"',
+    'set +a',
+    'cd "$PREFIX/app"',
+    'exec node dist/bridge-cli.js "$@"',
+    '',
+  ].join('\n');
+}

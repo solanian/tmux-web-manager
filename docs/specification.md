@@ -19,6 +19,7 @@
 - `agent` 는 allowlist 하위 경로에서 새 tmux session 생성/삭제/attach 를 지원할 것
 - `agent` 가 생성하는 tmux 는 `oh-my-tmux` 를 source 하고 mouse mode 를 강제할 것
 - native 설치가 우선 경로이며, 설치 후 `run-main.sh`, `run-sub.sh` 로 바로 실행 가능해야 할 것
+- agent host에서 hub relay를 shell command처럼 쓰기 위한 agent-local CLI wrapper를 제공할 수 있어야 함
 
 ## Hub Spec
 
@@ -151,7 +152,9 @@
   - `PREFIX/etc/tmux-web-manager.env`
   - `PREFIX/bin/run-main.sh`
   - `PREFIX/bin/run-sub.sh`
+  - `PREFIX/bin/twm-bridge`
 - 설치 후 `PATH` 와 `.env` 파일만으로 `hub` / `agent` 실행이 가능해야 함
+- CLI wrapper는 agent host에서 실행되지만, 실제 orchestration은 hub API를 호출하는 thin client 형태여야 함
 - 장시간 운영용 실행은 tmux session life-cycle 에 종속되지 않는 supervisor/autorestart 경로를 제공할 수 있어야 함
 - 장시간 운영용 기본 경로로는 user-level service manager(systemd --user 등)를 사용할 수 있어야 함
 

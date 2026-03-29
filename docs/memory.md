@@ -12,6 +12,7 @@
 - `smux` 의 local pane orchestration 방식과 현재 hub/agent session relay 방식을 비교한 문서 `docs/smux-orchestration-draft.md` 추가
 - smux 스타일의 read-before-write 규칙과 pane-first targeting 원칙을 정리한 `docs/agent-orchestration-protocol.md` 추가
 - `docs/agent-orchestration-protocol.md` 에 agent-friendly pane discovery endpoint (`GET /api/orchestration/panes`) 사용 규칙 반영
+- `docs/agent-orchestration-protocol.md` 에 `twm-bridge` CLI 사용 흐름과 source context 환경변수 규칙 반영
 - session-level distributed orchestration(`read`, `send-text-no-enter`, `send-keys`, `message`) 구현 범위를 스펙/테스트 문서에 반영
 - session-level distributed orchestration API 구현:
   - backend `read`
@@ -45,6 +46,8 @@
 - pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 범위 추가
 - pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 구현 완료 (`build-1`, `build-2` ...)
 - README / README-ko 에 pane discovery, label resolve, pane relay 사용 예시 추가
+- agent host에서 hub relay를 shell command처럼 호출할 수 있는 agent-local CLI wrapper 구현 범위 추가
+- agent-local / hub-backed CLI wrapper(`src/bridge-cli.ts`, `npm run bridge`, native `twm-bridge`) 구현
 - relay 감사 로그에 operation 종류와 payload 종류(`text`, `keys`, `lines`)가 남도록 보강
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
@@ -58,8 +61,8 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`59 passed`)
-- live smoke: pass (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`)
+- `npm test`: pass (`66 passed`)
+- live smoke: pass (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
 
 ## 2026-03-28
 

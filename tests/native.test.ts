@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEnvFile, buildRunScript } from '../src/native.js';
+import { buildBridgeScript, buildEnvFile, buildRunScript } from '../src/native.js';
 
 describe('native install assets', () => {
   it('renders env file with the configured backend and path values', () => {
@@ -31,5 +31,9 @@ describe('native install assets', () => {
   it('renders run scripts for main and sub modes', () => {
     expect(buildRunScript('main')).toContain('node dist/index.js main');
     expect(buildRunScript('sub')).toContain('node dist/index.js sub');
+  });
+
+  it('renders a bridge wrapper script that calls the hub-backed CLI', () => {
+    expect(buildBridgeScript()).toContain('node dist/bridge-cli.js');
   });
 });

@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { createLogger } from './logger.js';
 import {
+  buildBridgeScript,
   buildEnvFile,
   buildRunScript,
   defaultNativeDataDir,
@@ -156,8 +157,10 @@ function installArtifacts(options: CliOptions): void {
   writeFile(path.join(etcDir, 'tmux-web-manager.env'), buildEnvFile(options));
   writeFile(path.join(binDir, 'run-main.sh'), buildRunScript('main'));
   writeFile(path.join(binDir, 'run-sub.sh'), buildRunScript('sub'));
+  writeFile(path.join(binDir, 'twm-bridge'), buildBridgeScript());
   ensureExecutable(path.join(binDir, 'run-main.sh'));
   ensureExecutable(path.join(binDir, 'run-sub.sh'));
+  ensureExecutable(path.join(binDir, 'twm-bridge'));
 }
 
 function usage(): string {
@@ -180,6 +183,9 @@ function usage(): string {
     '  --tmux-socket-name <name>',
     '  --session-prefix <prefix>',
     '  --oh-my-tmux-conf <path>',
+    '',
+    'Installed helper commands:',
+    '  PREFIX/bin/twm-bridge',
   ].join('\n');
 }
 

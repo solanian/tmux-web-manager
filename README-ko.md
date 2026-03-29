@@ -89,6 +89,39 @@ systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```
 
+## Agent-local CLI wrapper
+
+agent shell이나 tmux pane에서 바로 사용할 수 있는 얇은 CLI wrapper도 포함되어 있습니다.
+
+이 wrapper는 agent host에서 실행되지만, 내부적으로는 hub relay API를 호출합니다.
+
+예시:
+
+```bash
+npm run bridge -- panes
+npm run bridge -- resolve server-b reviewer
+npm run bridge -- read server-b reviewer 20
+npm run bridge -- message server-b reviewer "Please review the failing test output."
+```
+
+tmux 안에서 실행하면 `$TMUX_PANE`를 기본 source pane으로 활용할 수 있습니다.
+
+유용한 환경 변수:
+
+- `TWM_BASE_URL` 또는 `BASE_URL`
+- `TWM_SOURCE_BACKEND`
+- `TWM_SOURCE_PANE`
+- `TWM_SOURCE_LABEL`
+
+예:
+
+```bash
+export TWM_BASE_URL=http://127.0.0.1:8787
+export TWM_SOURCE_BACKEND=server-a
+export TWM_SOURCE_PANE=%1
+npm run bridge -- read server-b reviewer 20
+```
+
 ## Native install
 
 Docker 없이 standalone prefix에 설치:
