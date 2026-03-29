@@ -5,6 +5,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyDerivedPaneLabels,
+  buildDerivedPaneLabel,
   buildManagedSessionName,
   buildManagedTmuxConfigContents,
   isNoServerRunningError,
@@ -45,6 +47,82 @@ describe('buildManagedTmuxConfigContents', () => {
 describe('buildManagedSessionName', () => {
   it('uses the optional requested session name when provided', () => {
     expect(buildManagedSessionName('fleet', 'abc123456', 'my session')).toBe('my-session');
+  });
+});
+
+describe('buildDerivedPaneLabel', () => {
+  it('builds a session-based suffix label', () => {
+    expect(buildDerivedPaneLabel('build session', 2)).toBe('build-session-2');
+  });
+});
+
+describe('applyDerivedPaneLabels', () => {
+  it('fills missing pane labels using session-name suffixes while preserving explicit labels', () => {
+    expect(
+      applyDerivedPaneLabels([
+        {
+          paneId: '%3',
+          sessionName: 'build',
+          windowIndex: 1,
+          paneIndex: 0,
+          currentPath: '/workspace/build',
+          currentCommand: 'bash',
+          title: '',
+          label: '',
+        },
+        {
+          paneId: '%1',
+          sessionName: 'build',
+          windowIndex: 0,
+          paneIndex: 0,
+          currentPath: '/workspace/build',
+          currentCommand: 'bash',
+          title: '',
+          label: '',
+        },
+        {
+          paneId: '%2',
+          sessionName: 'build',
+          windowIndex: 0,
+          paneIndex: 1,
+          currentPath: '/workspace/build',
+          currentCommand: 'bash',
+          title: '',
+          label: 'reviewer',
+        },
+      ]),
+    ).toEqual([
+      {
+        paneId: '%1',
+        sessionName: 'build',
+        windowIndex: 0,
+        paneIndex: 0,
+        currentPath: '/workspace/build',
+        currentCommand: 'bash',
+        title: '',
+        label: 'build-1',
+      },
+      {
+        paneId: '%2',
+        sessionName: 'build',
+        windowIndex: 0,
+        paneIndex: 1,
+        currentPath: '/workspace/build',
+        currentCommand: 'bash',
+        title: '',
+        label: 'reviewer',
+      },
+      {
+        paneId: '%3',
+        sessionName: 'build',
+        windowIndex: 1,
+        paneIndex: 0,
+        currentPath: '/workspace/build',
+        currentCommand: 'bash',
+        title: '',
+        label: 'build-2',
+      },
+    ]);
   });
 });
 

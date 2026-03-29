@@ -196,7 +196,8 @@ export interface RelayAuditRecord {
     | 'pane-send-text-no-enter'
     | 'pane-send-keys'
     | 'pane-message'
-    | 'pane-read';
+    | 'pane-read'
+    | 'pane-label';
   sourceBackendName: string;
   sourceSessionName: string;
   targetBackendName: string;
@@ -209,6 +210,20 @@ export interface RelayAuditRecord {
   lines?: number;
   sourcePaneId?: string;
   targetPaneId?: string;
+  sourceLabel?: string;
+  targetLabel?: string;
+}
+
+export interface OrchestrationPaneSummary {
+  targetId: string;
+  backendName: string;
+  paneId: string;
+  sessionName: string;
+  location: string;
+  label: string;
+  currentCommand: string;
+  currentPath: string;
+  lastActivityAt?: string;
 }
 
 function normalizeRelayTargetRequest(body: Record<string, unknown>): RelayTargetRequest {
@@ -405,6 +420,12 @@ export function buildRelayAuditRecord(
     ...(typeof body.targetPaneId === 'string' && body.targetPaneId.trim()
       ? { targetPaneId: String(body.targetPaneId).trim() }
       : {}),
+    ...(typeof body.sourceLabel === 'string' && body.sourceLabel.trim()
+      ? { sourceLabel: String(body.sourceLabel).trim() }
+      : {}),
+    ...(typeof body.targetLabel === 'string' && body.targetLabel.trim()
+      ? { targetLabel: String(body.targetLabel).trim() }
+      : {}),
   };
 }
 
@@ -417,6 +438,44 @@ export function buildSessionPathSummary(
     return requestedPath;
   }
   return `${requestedPath} · cwd ${currentPath}`;
+}
+
+export function sortAggregatedPanesForOrchestration(
+  panes: AggregatedPaneRecord[],
+): AggregatedPaneRecord[] {
+  return [...panes].sort((left, right) => {
+    const backendDiff = left.backendName.localeCompare(right.backendName);
+    if (backendDiff !== 0) {
+      return backendDiff;
+    }
+    const sessionDiff = left.sessionName.localeCompare(right.sessionName);
+    if (sessionDiff !== 0) {
+      return sessionDiff;
+    }
+    if (left.windowIndex !== right.windowIndex) {
+      return left.windowIndex - right.windowIndex;
+    }
+    if (left.paneIndex !== right.paneIndex) {
+      return left.paneIndex - right.paneIndex;
+    }
+    return left.paneId.localeCompare(right.paneId);
+  });
+}
+
+export function buildOrchestrationPaneSummary(
+  pane: AggregatedPaneRecord,
+): OrchestrationPaneSummary {
+  return {
+    targetId: `${pane.backendName}/${pane.paneId}`,
+    backendName: pane.backendName,
+    paneId: pane.paneId,
+    sessionName: pane.sessionName,
+    location: `${pane.sessionName}:${pane.windowIndex}.${pane.paneIndex}`,
+    label: pane.label,
+    currentCommand: pane.currentCommand,
+    currentPath: pane.currentPath,
+    lastActivityAt: pane.lastActivityAt,
+  };
 }
 
 function sortTimestampDesc(left?: string, right?: string): number {

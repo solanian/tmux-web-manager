@@ -10,6 +10,11 @@
 - hub relay API 가 source/target backend 이름 + source/target session 이름 + text 기준 send-text 를 전달
 - hub relay API 가 source/target backend 이름 + source/target session 이름 기준으로 `send-text-no-enter`, `send-keys`, `message`, `read` 를 전달
 - hub pane relay API 가 source/target backend 이름 + source/target pane id 기준으로 `send-text`, `send-text-no-enter`, `send-keys`, `message`, `read` 를 전달
+- hub 가 agent-friendly pane discovery endpoint (`GET /api/orchestration/panes`) 를 제공
+- hub 가 pane label resolve endpoint (`GET /api/orchestration/panes/resolve`) 를 제공
+- hub pane relay 가 `targetPaneId` 대신 `targetLabel` 을 받아 resolve 가능
+- hub pane relay 가 `sourcePaneId` 대신 `sourceLabel` 도 받아 resolve 가능
+- 명시적 pane label이 없을 때 session 이름 기반 suffix label이 자동 생성되어 discovery/resolve에 반영
 - relay 감사 로그 파일에 source/target backend 이름, source/target session 이름, text가 기록
 - relay 감사 로그가 성공/실패 결과와 실패 error 메시지를 함께 기록
 - relay 감사 로그가 operation 종류와 `text`/`keys`/`lines` payload 요약을 함께 기록
@@ -33,6 +38,8 @@
 - session name 기준 message API
 - session name 기준 read API
 - pane id 기준 pane list/read/send-text/send-text-no-enter/send-keys/message API
+- pane label set/resolve API
+- orchestration pane discovery summary/endpoint 안내 API
 - tmux session rename API
 - tmux 입력 매핑과 `send-keys` 경로
 - 기본 tmux socket mode 가 host default tmux 를 사용
@@ -100,7 +107,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`54 passed`)
+- `npm test`: pass (`59 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

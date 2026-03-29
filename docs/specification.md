@@ -45,7 +45,13 @@
   - `pane send-text-no-enter`
   - `pane send-keys`
   - `pane message`
+- hub 는 pane label/resolve 기능을 제공할 수 있어야 함:
+  - pane label 설정
+  - label -> paneId resolve
+  - pane relay 요청에서 `paneId` 대신 `label` 사용
+- pane에 명시적 label이 없으면 session 이름 기반 suffix label을 자동 계산해 discovery/resolve에 사용할 수 있어야 함
 - pane-level 식별자는 `sessionName + paneIndex` 조합이 아니라 tmux 고유 `paneId` (`%12` 등) 기준이어야 함
+- hub 는 agent가 pane target을 쉽게 찾을 수 있도록 `backendName/paneId` 형태의 target summary 와 relay endpoint 안내를 주는 discovery API를 제공할 수 있어야 함
 - hub relay 요청은 source/target backend 이름, source/target session 이름, text, time 정보를 감사 로그로 남길 수 있어야 함
 - relay 감사 로그는 성공/실패 결과와 실패 원인(error message)을 함께 남길 수 있어야 함
 - relay 감사 로그는 operation 종류(`send-text`, `send-text-no-enter`, `send-keys`, `message`, `read`)를 함께 남길 수 있어야 함
@@ -95,11 +101,14 @@
   - `POST /api/relay/message`
   - `POST /api/relay/read`
   - `GET /api/panes`
+  - `GET /api/orchestration/panes`
+  - `GET /api/orchestration/panes/resolve`
   - `POST /api/relay/panes/send-text`
   - `POST /api/relay/panes/send-text-no-enter`
   - `POST /api/relay/panes/send-keys`
   - `POST /api/relay/panes/message`
   - `POST /api/relay/panes/read`
+  - `POST /api/relay/panes/label`
   - `WS /ws/terminal`
 
 ## Agent Spec
@@ -109,6 +118,7 @@
 - agent는 backend auth token을 자동 생성/보존할 수 있어야 하며, token 없이는 hub가 agent API/WS에 연결할 수 없어야 함
 - `GET /api/sessions` 로 관리 중인 session 목록을 반환해야 함
 - `GET /api/panes` 로 현재 tmux pane 목록과 pane metadata 를 반환할 수 있어야 함
+- `GET /api/panes/resolve/:label` 로 label 기준 pane resolve 를 지원할 수 있어야 함
 - agent 가 사용하는 tmux socket 에 기존 session 이 있으면 startup/list refresh 시 자동으로 관리 목록에 편입해야 함
 - session payload 는 tmux `session_activity` 기반 최근 활동 시각을 포함해야 함
 - `POST /api/sessions` 로 allowlist 검증 후 새 tmux session 을 생성해야 함
@@ -122,6 +132,7 @@
 - `POST /api/panes/by-id/:paneId/send-text-no-enter` 로 pane id 기준 텍스트 입력만 지원해야 함
 - `POST /api/panes/by-id/:paneId/send-keys` 로 pane id 기준 특수키 배열 전송을 지원해야 함
 - `POST /api/panes/by-id/:paneId/message` 로 pane id 기준 sender metadata 포함 message text 전송을 지원할 수 있어야 함
+- `POST /api/panes/by-id/:paneId/label` 로 pane label 설정을 지원할 수 있어야 함
 - `PUT /api/sessions/:id` 로 tmux session rename 을 지원해야 함
 - `DELETE /api/sessions/:id` 로 tmux session 을 종료하고 메타데이터를 제거해야 함
 - `WS /ws/sessions/:id` 로 `tmux attach-session` PTY stream 을 제공해야 함

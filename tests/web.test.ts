@@ -7,6 +7,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildOrchestrationPaneSummary,
   buildRelayAuditRecord,
   buildSessionPathSummary,
   createWebServer,
@@ -20,6 +21,7 @@ import {
   normalizeRelayReadRequest,
   normalizeRelaySendTextRequest,
   renderHtmlPage,
+  sortAggregatedPanesForOrchestration,
   sortAggregatedSessionsByRecentActivity,
 } from '../src/web.js';
 import {
@@ -87,6 +89,83 @@ describe('sortAggregatedSessionsByRecentActivity', () => {
     ]);
 
     expect(sessions.map((session) => session.tmuxSessionName)).toEqual(['newer', 'older']);
+  });
+});
+
+describe('orchestration pane helpers', () => {
+  it('sorts panes in a stable backend/session/window/pane order', () => {
+    const panes = sortAggregatedPanesForOrchestration([
+      {
+        backendId: 'b',
+        backendName: 'server-b',
+        backendBaseUrl: 'http://b',
+        paneId: '%3',
+        sessionName: 'ops',
+        windowIndex: 1,
+        paneIndex: 0,
+        currentPath: '/workspace/ops',
+        currentCommand: 'bash',
+        title: '',
+        label: '',
+      },
+      {
+        backendId: 'a',
+        backendName: 'server-a',
+        backendBaseUrl: 'http://a',
+        paneId: '%1',
+        sessionName: 'build',
+        windowIndex: 0,
+        paneIndex: 1,
+        currentPath: '/workspace/build',
+        currentCommand: 'bash',
+        title: '',
+        label: '',
+      },
+      {
+        backendId: 'a',
+        backendName: 'server-a',
+        backendBaseUrl: 'http://a',
+        paneId: '%2',
+        sessionName: 'build',
+        windowIndex: 0,
+        paneIndex: 0,
+        currentPath: '/workspace/build',
+        currentCommand: 'bash',
+        title: '',
+        label: '',
+      },
+    ]);
+
+    expect(panes.map((pane) => pane.paneId)).toEqual(['%2', '%1', '%3']);
+  });
+
+  it('builds an agent-friendly pane summary', () => {
+    expect(
+      buildOrchestrationPaneSummary({
+        backendId: 'b',
+        backendName: 'server-b',
+        backendBaseUrl: 'http://b',
+        paneId: '%3',
+        sessionName: 'ops',
+        windowIndex: 1,
+        paneIndex: 0,
+        currentPath: '/workspace/ops',
+        currentCommand: 'bash',
+        title: '',
+        label: 'reviewer',
+        lastActivityAt: '2026-03-29T00:00:00.000Z',
+      }),
+    ).toEqual({
+      targetId: 'server-b/%3',
+      backendName: 'server-b',
+      paneId: '%3',
+      sessionName: 'ops',
+      location: 'ops:1.0',
+      label: 'reviewer',
+      currentCommand: 'bash',
+      currentPath: '/workspace/ops',
+      lastActivityAt: '2026-03-29T00:00:00.000Z',
+    });
   });
 });
 
@@ -929,7 +1008,7 @@ describe('createWebServer', () => {
                 currentPath: '/workspace/ops',
                 currentCommand: 'bash',
                 title: '',
-                label: '',
+                label: 'reviewer',
                 lastActivityAt: '2026-03-29T00:00:00.000Z',
               },
             ],
@@ -960,6 +1039,11 @@ describe('createWebServer', () => {
       if (req.method === 'POST' && req.url === '/api/panes/by-id/%252/message') {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/api/panes/by-id/%252/label') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, paneId: '%2', label: 'codex' }));
         return;
       }
       res.writeHead(404).end();
@@ -1013,7 +1097,7 @@ describe('createWebServer', () => {
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
           targetBackendName: 'server-b',
-          targetPaneId: '%2',
+          targetLabel: 'reviewer',
           text: 'echo pane',
         }),
       });
@@ -1026,7 +1110,7 @@ describe('createWebServer', () => {
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
           targetBackendName: 'server-b',
-          targetPaneId: '%2',
+          targetLabel: 'reviewer',
           text: 'echo pane',
         }),
       });
@@ -1039,7 +1123,7 @@ describe('createWebServer', () => {
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
           targetBackendName: 'server-b',
-          targetPaneId: '%2',
+          targetLabel: 'reviewer',
           keys: ['Enter', 'C-c'],
         }),
       });
@@ -1052,8 +1136,21 @@ describe('createWebServer', () => {
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
           targetBackendName: 'server-b',
-          targetPaneId: '%2',
+          targetLabel: 'reviewer',
           text: 'please review pane',
+        }),
+      });
+      expect(response.status).toBe(200);
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/label`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceBackendName: 'server-a',
+          sourcePaneId: '%1',
+          targetBackendName: 'server-b',
+          targetLabel: 'reviewer',
+          label: 'codex',
         }),
       });
       expect(response.status).toBe(200);
@@ -1087,6 +1184,11 @@ describe('createWebServer', () => {
           text: 'please review pane',
         },
       });
+      expect(requests).toContainEqual({
+        method: 'POST',
+        url: '/api/panes/by-id/%252/label',
+        body: { label: 'codex' },
+      });
 
       const logLines = fs
         .readFileSync(path.join(root, 'central', 'relay-log.jsonl'), 'utf8')
@@ -1099,11 +1201,115 @@ describe('createWebServer', () => {
         'pane-send-text-no-enter',
         'pane-send-keys',
         'pane-message',
+        'pane-label',
       ]);
       expect(logLines.at(-1)).toMatchObject({
         sourcePaneId: '%1',
-        targetPaneId: '%2',
-        operation: 'pane-message',
+        targetLabel: 'reviewer',
+        operation: 'pane-label',
+      });
+    } finally {
+      await server.stop();
+      await closeServer(targetServer);
+    }
+  });
+
+  it('exposes agent-friendly orchestration pane discovery', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-pane-discovery-'));
+    const targetPort = await getFreePort();
+    const hubPort = await getFreePort();
+    const targetServer = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/api/health') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/sessions') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ sessions: [] }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/panes') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            panes: [
+              {
+                paneId: '%2',
+                sessionName: 'ops',
+                windowIndex: 1,
+                paneIndex: 0,
+                currentPath: '/workspace/ops',
+                currentCommand: 'bash',
+                title: '',
+                label: 'reviewer',
+                lastActivityAt: '2026-03-29T00:00:00.000Z',
+              },
+            ],
+          }),
+        );
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    await listen(targetServer, targetPort);
+
+    const store = new BackendRegistryStore(root);
+    store.save({
+      name: 'server-b',
+      baseUrl: `http://127.0.0.1:${targetPort}`,
+      authToken: '',
+    });
+    const server = createWebServer(buildTestConfig(root, hubPort), store);
+    await server.start();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${hubPort}/api/orchestration/panes`);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        targetIdFormat: 'backendName/paneId',
+        readBeforeWrite: true,
+        endpoints: {
+          list: 'GET /api/orchestration/panes',
+          resolve: 'GET /api/orchestration/panes/resolve?backendName=<name>&label=<label>',
+          read: 'POST /api/relay/panes/read',
+          sendText: 'POST /api/relay/panes/send-text',
+          sendTextNoEnter: 'POST /api/relay/panes/send-text-no-enter',
+          sendKeys: 'POST /api/relay/panes/send-keys',
+          message: 'POST /api/relay/panes/message',
+          label: 'POST /api/relay/panes/label',
+        },
+        panes: [
+          {
+            targetId: 'server-b/%2',
+            backendName: 'server-b',
+            paneId: '%2',
+            sessionName: 'ops',
+            location: 'ops:1.0',
+            label: 'reviewer',
+            currentCommand: 'bash',
+            currentPath: '/workspace/ops',
+            lastActivityAt: '2026-03-29T00:00:00.000Z',
+          },
+        ],
+      });
+
+      const resolveResponse = await fetch(
+        `http://127.0.0.1:${hubPort}/api/orchestration/panes/resolve?backendName=server-b&label=reviewer`,
+      );
+      expect(resolveResponse.status).toBe(200);
+      await expect(resolveResponse.json()).resolves.toEqual({
+        pane: {
+          targetId: 'server-b/%2',
+          backendName: 'server-b',
+          paneId: '%2',
+          sessionName: 'ops',
+          location: 'ops:1.0',
+          label: 'reviewer',
+          currentCommand: 'bash',
+          currentPath: '/workspace/ops',
+          lastActivityAt: '2026-03-29T00:00:00.000Z',
+        },
       });
     } finally {
       await server.stop();

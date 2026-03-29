@@ -32,6 +32,18 @@
   - hub pane relay `read` / `send-text` / `send-text-no-enter` / `send-keys` / `message`
 - pane relay read guard 추가 (`sourcePaneId` -> `targetPaneId`)
 - agent가 pane target을 쉽게 이해하도록 `backendName/paneId` summary 와 endpoint 안내를 주는 orchestration pane discovery API 추가
+- pane label/resolve 구현 범위를 추가:
+  - backend pane label 설정
+  - backend label resolve
+  - hub orchestration pane resolve
+  - hub pane relay에서 `paneId` 대신 `label` 허용
+- pane label/resolve 구현 완료:
+  - backend `POST /api/panes/by-id/:paneId/label`
+  - backend `GET /api/panes/resolve/:label`
+  - hub `GET /api/orchestration/panes/resolve`
+  - hub pane relay에서 `targetLabel` / `sourceLabel` 허용
+- pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 범위 추가
+- pane 명시적 label이 없을 때 session 이름 기반 suffix label 자동 부여 구현 완료 (`build-1`, `build-2` ...)
 - relay 감사 로그에 operation 종류와 payload 종류(`text`, `keys`, `lines`)가 남도록 보강
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
@@ -45,7 +57,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`57 passed`)
+- `npm test`: pass (`59 passed`)
 
 ## 2026-03-28
 

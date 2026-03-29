@@ -18,11 +18,13 @@ import {
   readPaneOutput,
   readPaneOutputById,
   renameTmuxSession,
+  resolvePaneIdByLabel,
   sendInput,
   sendInputToPane,
   sendKeys,
   sendKeysToPane,
   sessionExists,
+  setPaneLabel,
   stopTmuxSession,
   type ManagedTmuxOptions,
   validateProjectPath,
@@ -262,6 +264,24 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
         return;
       }
 
+      if (req.method === 'GET' && url.pathname.startsWith('/api/panes/resolve/')) {
+        const encodedLabel = url.pathname.slice('/api/panes/resolve/'.length).replace(/\/+$/, '');
+        const label = decodeURIComponent(encodedLabel);
+        if (!label) {
+          sendJson(res, 400, { error: 'label is required' });
+          return;
+        }
+        const paneId = await resolvePaneIdByLabel(label, tmuxOptions);
+        const panes = await listTmuxPanes(tmuxOptions);
+        const pane = panes.find((entry) => entry.paneId === paneId);
+        if (!pane) {
+          sendJson(res, 404, { error: `Unknown tmux pane label: ${label}` });
+          return;
+        }
+        sendJson(res, 200, { pane });
+        return;
+      }
+
       if (req.method === 'POST' && url.pathname === '/api/sessions') {
         const body = await readJsonBody(req);
         const requestedPath = String(body.path || '').trim();
@@ -327,6 +347,32 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
         const lines = normalizeSessionReadLines(url.searchParams.get('lines'));
         const output = await readPaneOutputById(paneId, lines, tmuxOptions);
         sendJson(res, 200, { paneId, lines, output });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/label')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/label'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const label = String(body.label || '').trim();
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        const nextLabel = await setPaneLabel(paneId, label, tmuxOptions);
+        sendJson(res, 200, { ok: true, paneId, label: nextLabel });
         return;
       }
 

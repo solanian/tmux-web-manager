@@ -13,8 +13,10 @@ import {
   aggregateBackendPanes,
   aggregateBackendStates,
   appendJsonLine,
+  buildOrchestrationPaneSummary,
   authHeaders,
   buildRelayAuditRecord,
+  fetchBackendPanes,
   fetchBackendState,
   fetchJson,
   getBackendByName,
@@ -28,6 +30,7 @@ import {
   normalizeRelaySendTextRequest,
   readJsonBody,
   sendJson,
+  sortAggregatedPanesForOrchestration,
   sortAggregatedSessionsByRecentActivity,
 } from './helpers.js';
 
@@ -42,6 +45,80 @@ async function resolveTargetBackendOrThrow(
     throw new Error(`Unknown backend name: ${targetBackendName}`);
   }
   return targetBackend;
+}
+
+async function resolvePaneReferenceOrThrow(
+  store: BackendRegistryStore,
+  backendName: string,
+  paneId: string | undefined,
+  label: string | undefined,
+) {
+  const backend = await resolveTargetBackendOrThrow(store, backendName);
+  const panes = await fetchBackendPanes(backend);
+  if (paneId?.trim()) {
+    const pane = panes.find((entry) => entry.paneId === paneId.trim());
+    if (!pane) {
+      throw new Error(`Unknown tmux pane id: ${paneId.trim()}`);
+    }
+    return { backend, pane };
+  }
+  const normalizedLabel = label?.trim();
+  if (!normalizedLabel) {
+    throw new Error('targetPaneId or targetLabel is required');
+  }
+  const matches = panes.filter((entry) => entry.label === normalizedLabel);
+  if (matches.length === 0) {
+    throw new Error(`Unknown tmux pane label: ${normalizedLabel}`);
+  }
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous tmux pane label: ${normalizedLabel}`);
+  }
+  return { backend, pane: matches[0]! };
+}
+
+function readPaneSelector(
+  body: Record<string, unknown>,
+  side: 'source' | 'target',
+): { backendName: string; paneId?: string; label?: string } {
+  const backendField = side === 'source' ? 'sourceBackendName' : 'targetBackendName';
+  const paneIdField = side === 'source' ? 'sourcePaneId' : 'targetPaneId';
+  const labelField = side === 'source' ? 'sourceLabel' : 'targetLabel';
+  const backendName = String(body[backendField] || '').trim();
+  if (!backendName) {
+    throw new Error(`${backendField} is required`);
+  }
+  const paneId = String(body[paneIdField] || '').trim();
+  const label = String(body[labelField] || '').trim();
+  if (!paneId && !label) {
+    throw new Error(`${paneIdField} or ${labelField} is required`);
+  }
+  return {
+    backendName,
+    ...(paneId ? { paneId } : {}),
+    ...(label ? { label } : {}),
+  };
+}
+
+async function resolveSourcePaneIdentity(
+  store: BackendRegistryStore,
+  selector: { backendName: string; paneId?: string; label?: string },
+) {
+  if (selector.paneId) {
+    return {
+      backendName: selector.backendName,
+      paneId: selector.paneId,
+    };
+  }
+  const source = await resolvePaneReferenceOrThrow(
+    store,
+    selector.backendName,
+    undefined,
+    selector.label,
+  );
+  return {
+    backendName: source.backend.name,
+    paneId: source.pane.paneId,
+  };
 }
 
 export function createWebServer(config: AppConfig, store: BackendRegistryStore) {
@@ -73,6 +150,57 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'GET' && url.pathname === '/api/panes') {
         const panes = await aggregateBackendPanes(store);
         sendJson(res, 200, { panes });
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/orchestration/panes') {
+        const panes = sortAggregatedPanesForOrchestration(await aggregateBackendPanes(store)).map(
+          buildOrchestrationPaneSummary,
+        );
+        sendJson(res, 200, {
+          targetIdFormat: 'backendName/paneId',
+          readBeforeWrite: true,
+          endpoints: {
+            list: 'GET /api/orchestration/panes',
+            resolve: 'GET /api/orchestration/panes/resolve?backendName=<name>&label=<label>',
+            read: 'POST /api/relay/panes/read',
+            sendText: 'POST /api/relay/panes/send-text',
+            sendTextNoEnter: 'POST /api/relay/panes/send-text-no-enter',
+            sendKeys: 'POST /api/relay/panes/send-keys',
+            message: 'POST /api/relay/panes/message',
+            label: 'POST /api/relay/panes/label',
+          },
+          panes,
+        });
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/orchestration/panes/resolve') {
+        const backendName = String(url.searchParams.get('backendName') || '').trim();
+        const label = String(url.searchParams.get('label') || '').trim();
+        if (!backendName) {
+          sendJson(res, 400, { error: 'backendName is required' });
+          return;
+        }
+        if (!label) {
+          sendJson(res, 400, { error: 'label is required' });
+          return;
+        }
+        try {
+          const { pane } = await resolvePaneReferenceOrThrow(store, backendName, undefined, label);
+          sendJson(res, 200, { pane: buildOrchestrationPaneSummary(pane) });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (/^Unknown backend name: /.test(message) || /^Unknown tmux pane label: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
         return;
       }
 
@@ -368,15 +496,30 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-text') {
         const body = await readJsonBody(req);
         try {
-          const relayRequest = normalizeRelayPaneSendTextRequest(body);
-          relayPaneReadGuard.requireRecentRead(relayRequest);
-          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const sourceSelector = readPaneSelector(body, 'source');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            readPaneSelector(body, 'target').backendName,
+            readPaneSelector(body, 'target').paneId,
+            readPaneSelector(body, 'target').label,
+          );
+          const text = String(body.text || '');
+          if (!text) {
+            throw new Error('text is required');
+          }
+          relayPaneReadGuard.requireRecentRead({
+            sourceBackendName: source.backendName,
+            sourcePaneId: source.paneId,
+            targetBackendName: target.backend.name,
+            targetPaneId: target.pane.paneId,
+          });
           const payload = await fetchJson<{ ok: true }>(
-            targetBackend,
-            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-text`,
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/send-text`,
             {
               method: 'POST',
-              body: JSON.stringify({ text: relayRequest.text }),
+              body: JSON.stringify({ text }),
             },
           );
           appendJsonLine(
@@ -384,7 +527,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
             buildRelayAuditRecord(body, {
               operation: 'pane-send-text',
               result: 'ok',
-              targetBackend,
+              targetBackend: target.backend,
             }),
           );
           sendJson(res, 200, payload);
@@ -398,8 +541,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
               error: message,
             }),
           );
-          if (/^Unknown backend name: /.test(message)) {
+          if (/^Unknown backend name: /.test(message) || /^Unknown tmux pane (id|label): /.test(message)) {
             sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
             return;
           }
           if (/^Recent read required/.test(message)) {
@@ -414,15 +561,31 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-text-no-enter') {
         const body = await readJsonBody(req);
         try {
-          const relayRequest = normalizeRelayPaneSendTextRequest(body);
-          relayPaneReadGuard.requireRecentRead(relayRequest);
-          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const sourceSelector = readPaneSelector(body, 'source');
+          const targetSelector = readPaneSelector(body, 'target');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            targetSelector.backendName,
+            targetSelector.paneId,
+            targetSelector.label,
+          );
+          const text = String(body.text || '');
+          if (!text) {
+            throw new Error('text is required');
+          }
+          relayPaneReadGuard.requireRecentRead({
+            sourceBackendName: source.backendName,
+            sourcePaneId: source.paneId,
+            targetBackendName: target.backend.name,
+            targetPaneId: target.pane.paneId,
+          });
           const payload = await fetchJson<{ ok: true }>(
-            targetBackend,
-            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-text-no-enter`,
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/send-text-no-enter`,
             {
               method: 'POST',
-              body: JSON.stringify({ text: relayRequest.text }),
+              body: JSON.stringify({ text }),
             },
           );
           appendJsonLine(
@@ -430,7 +593,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
             buildRelayAuditRecord(body, {
               operation: 'pane-send-text-no-enter',
               result: 'ok',
-              targetBackend,
+              targetBackend: target.backend,
             }),
           );
           sendJson(res, 200, payload);
@@ -444,8 +607,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
               error: message,
             }),
           );
-          if (/^Unknown backend name: /.test(message)) {
+          if (/^Unknown backend name: /.test(message) || /^Unknown tmux pane (id|label): /.test(message)) {
             sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
             return;
           }
           if (/^Recent read required/.test(message)) {
@@ -460,15 +627,33 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-keys') {
         const body = await readJsonBody(req);
         try {
-          const relayRequest = normalizeRelayPaneKeysRequest(body);
-          relayPaneReadGuard.requireRecentRead(relayRequest);
-          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const sourceSelector = readPaneSelector(body, 'source');
+          const targetSelector = readPaneSelector(body, 'target');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            targetSelector.backendName,
+            targetSelector.paneId,
+            targetSelector.label,
+          );
+          const keys = Array.isArray(body.keys)
+            ? body.keys.map((value) => String(value || '').trim()).filter(Boolean)
+            : [];
+          if (keys.length === 0) {
+            throw new Error('keys is required');
+          }
+          relayPaneReadGuard.requireRecentRead({
+            sourceBackendName: source.backendName,
+            sourcePaneId: source.paneId,
+            targetBackendName: target.backend.name,
+            targetPaneId: target.pane.paneId,
+          });
           const payload = await fetchJson<{ ok: true }>(
-            targetBackend,
-            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-keys`,
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/send-keys`,
             {
               method: 'POST',
-              body: JSON.stringify({ keys: relayRequest.keys }),
+              body: JSON.stringify({ keys }),
             },
           );
           appendJsonLine(
@@ -476,7 +661,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
             buildRelayAuditRecord(body, {
               operation: 'pane-send-keys',
               result: 'ok',
-              targetBackend,
+              targetBackend: target.backend,
             }),
           );
           sendJson(res, 200, payload);
@@ -490,8 +675,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
               error: message,
             }),
           );
-          if (/^Unknown backend name: /.test(message)) {
+          if (/^Unknown backend name: /.test(message) || /^Unknown tmux pane (id|label): /.test(message)) {
             sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
             return;
           }
           if (/^Recent read required/.test(message)) {
@@ -506,18 +695,34 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'POST' && url.pathname === '/api/relay/panes/message') {
         const body = await readJsonBody(req);
         try {
-          const relayRequest = normalizeRelayPaneSendTextRequest(body);
-          relayPaneReadGuard.requireRecentRead(relayRequest);
-          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const sourceSelector = readPaneSelector(body, 'source');
+          const targetSelector = readPaneSelector(body, 'target');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            targetSelector.backendName,
+            targetSelector.paneId,
+            targetSelector.label,
+          );
+          const text = String(body.text || '');
+          if (!text) {
+            throw new Error('text is required');
+          }
+          relayPaneReadGuard.requireRecentRead({
+            sourceBackendName: source.backendName,
+            sourcePaneId: source.paneId,
+            targetBackendName: target.backend.name,
+            targetPaneId: target.pane.paneId,
+          });
           const payload = await fetchJson<{ ok: true }>(
-            targetBackend,
-            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/message`,
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/message`,
             {
               method: 'POST',
               body: JSON.stringify({
-                fromBackendName: relayRequest.sourceBackendName,
-                fromPaneId: relayRequest.sourcePaneId,
-                text: relayRequest.text,
+                fromBackendName: source.backendName,
+                fromPaneId: source.paneId,
+                text,
               }),
             },
           );
@@ -526,7 +731,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
             buildRelayAuditRecord(body, {
               operation: 'pane-message',
               result: 'ok',
-              targetBackend,
+              targetBackend: target.backend,
             }),
           );
           sendJson(res, 200, payload);
@@ -540,8 +745,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
               error: message,
             }),
           );
-          if (/^Unknown backend name: /.test(message)) {
+          if (/^Unknown backend name: /.test(message) || /^Unknown tmux pane (id|label): /.test(message)) {
             sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
             return;
           }
           if (/^Recent read required/.test(message)) {
@@ -556,22 +765,41 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (req.method === 'POST' && url.pathname === '/api/relay/panes/read') {
         const body = await readJsonBody(req);
         try {
-          const relayRequest = normalizeRelayPaneReadRequest(body);
-          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
-          const search = relayRequest.lines ? `?lines=${encodeURIComponent(String(relayRequest.lines))}` : '';
+          const sourceSelector = readPaneSelector(body, 'source');
+          const targetSelector = readPaneSelector(body, 'target');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            targetSelector.backendName,
+            targetSelector.paneId,
+            targetSelector.label,
+          );
+          const rawLines = body.lines;
+          const lines =
+            typeof rawLines === 'number'
+              ? Math.max(1, Math.min(500, Math.floor(rawLines)))
+              : typeof rawLines === 'string' && rawLines.trim()
+                ? Math.max(1, Math.min(500, Number.parseInt(rawLines, 10)))
+                : undefined;
+          const search = lines ? `?lines=${encodeURIComponent(String(lines))}` : '';
           const payload = await fetchJson<{ paneId: string; lines: number; output: string }>(
-            targetBackend,
-            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/read${search}`,
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/read${search}`,
           );
           appendJsonLine(
             relayLogPath,
             buildRelayAuditRecord(body, {
               operation: 'pane-read',
               result: 'ok',
-              targetBackend,
+              targetBackend: target.backend,
             }),
           );
-          relayPaneReadGuard.markRead(relayRequest);
+          relayPaneReadGuard.markRead({
+            sourceBackendName: source.backendName,
+            sourcePaneId: source.paneId,
+            targetBackendName: target.backend.name,
+            targetPaneId: target.pane.paneId,
+          });
           sendJson(res, 200, payload);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -583,8 +811,71 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
               error: message,
             }),
           );
-          if (/^Unknown backend name: /.test(message)) {
+          if (
+            /^Unknown backend name: /.test(message) ||
+            /^Unknown tmux pane (id|label): /.test(message)
+          ) {
             sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/label') {
+        const body = await readJsonBody(req);
+        try {
+          const sourceSelector = readPaneSelector(body, 'source');
+          const targetSelector = readPaneSelector(body, 'target');
+          const source = await resolveSourcePaneIdentity(store, sourceSelector);
+          const target = await resolvePaneReferenceOrThrow(
+            store,
+            targetSelector.backendName,
+            targetSelector.paneId,
+            targetSelector.label,
+          );
+          const label = String(body.label || '').trim();
+          const payload = await fetchJson<{ ok: true; paneId: string; label: string }>(
+            target.backend,
+            `/api/panes/by-id/${encodeURIComponent(target.pane.paneId)}/label`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ label }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-label',
+              result: 'ok',
+              targetBackend: target.backend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-label',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (
+            /^Unknown backend name: /.test(message) ||
+            /^Unknown tmux pane (id|label): /.test(message)
+          ) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Ambiguous tmux pane label: /.test(message)) {
+            sendJson(res, 409, { error: message });
             return;
           }
           throw error;

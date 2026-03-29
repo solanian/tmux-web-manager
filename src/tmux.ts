@@ -127,6 +127,40 @@ export function sanitizeTmuxSessionName(value: string): string {
   return sanitizeSessionName(value.trim());
 }
 
+export function buildDerivedPaneLabel(sessionName: string, sequence: number): string {
+  const base = sanitizeTmuxSessionName(sessionName) || 'pane';
+  return `${base}-${sequence}`;
+}
+
+export function applyDerivedPaneLabels(panes: TmuxPaneRecord[]): TmuxPaneRecord[] {
+  const counters = new Map<string, number>();
+  return [...panes]
+    .sort((left, right) => {
+      const sessionDiff = left.sessionName.localeCompare(right.sessionName);
+      if (sessionDiff !== 0) {
+        return sessionDiff;
+      }
+      if (left.windowIndex !== right.windowIndex) {
+        return left.windowIndex - right.windowIndex;
+      }
+      if (left.paneIndex !== right.paneIndex) {
+        return left.paneIndex - right.paneIndex;
+      }
+      return left.paneId.localeCompare(right.paneId);
+    })
+    .map((pane) => {
+      if (pane.label.trim()) {
+        return pane;
+      }
+      const nextSequence = (counters.get(pane.sessionName) || 0) + 1;
+      counters.set(pane.sessionName, nextSequence);
+      return {
+        ...pane,
+        label: buildDerivedPaneLabel(pane.sessionName, nextSequence),
+      };
+    });
+}
+
 export function buildManagedSessionName(
   prefix: string,
   sessionId: string,
@@ -199,6 +233,35 @@ export async function paneExists(paneId: string, options: ManagedTmuxOptions): P
   } catch {
     return false;
   }
+}
+
+export async function setPaneLabel(
+  paneId: string,
+  label: string,
+  options: ManagedTmuxOptions,
+): Promise<string> {
+  const normalizedLabel = label.trim();
+  await tmux(['set-option', '-p', '-t', paneId, '@name', normalizedLabel], options);
+  return normalizedLabel;
+}
+
+export async function resolvePaneIdByLabel(
+  label: string,
+  options: ManagedTmuxOptions,
+): Promise<string> {
+  const normalizedLabel = label.trim();
+  if (!normalizedLabel) {
+    throw new Error('label is required');
+  }
+  const panes = await listTmuxPanes(options);
+  const matches = panes.filter((pane) => pane.label === normalizedLabel);
+  if (matches.length === 0) {
+    throw new Error(`Unknown tmux pane label: ${normalizedLabel}`);
+  }
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous tmux pane label: ${normalizedLabel}`);
+  }
+  return matches[0]!.paneId;
 }
 
 export async function getPaneWorkingDirectory(
@@ -288,7 +351,8 @@ export async function listTmuxPanes(options: ManagedTmuxOptions): Promise<TmuxPa
     throw error;
   }
 
-  return stdout
+  return applyDerivedPaneLabels(
+    stdout
     .split('\n')
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -316,7 +380,8 @@ export async function listTmuxPanes(options: ManagedTmuxOptions): Promise<TmuxPa
         lastActivityAt: epochSecondsToIso(activityEpochRaw),
       };
     })
-    .filter((pane) => Boolean(pane.paneId && pane.sessionName));
+    .filter((pane) => Boolean(pane.paneId && pane.sessionName)),
+  );
 }
 
 export function splitInput(data: string): InputPart[] {
