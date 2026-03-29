@@ -111,6 +111,66 @@ This returns aggregated pane metadata such as:
 - `currentCommand`
 - `label`
 
+### Agent-friendly orchestration pane discovery
+
+For agent workflows, prefer:
+
+```http
+GET /api/orchestration/panes
+```
+
+This endpoint is designed to be easier for agents to consume directly.
+
+It provides:
+
+- `targetIdFormat`
+- `readBeforeWrite`
+- relay endpoint hints
+- simplified pane summaries
+
+Important conventions:
+
+- canonical target format: `backendName/paneId`
+- canonical pane identity: tmux `paneId` such as `%12`
+
+Typical response shape:
+
+```json
+{
+  "targetIdFormat": "backendName/paneId",
+  "readBeforeWrite": true,
+  "endpoints": {
+    "list": "GET /api/orchestration/panes",
+    "read": "POST /api/relay/panes/read",
+    "sendText": "POST /api/relay/panes/send-text",
+    "sendTextNoEnter": "POST /api/relay/panes/send-text-no-enter",
+    "sendKeys": "POST /api/relay/panes/send-keys",
+    "message": "POST /api/relay/panes/message"
+  },
+  "panes": [
+    {
+      "targetId": "server-b/%2",
+      "backendName": "server-b",
+      "paneId": "%2",
+      "sessionName": "ops",
+      "location": "ops:1.0",
+      "label": "reviewer",
+      "currentCommand": "bash",
+      "currentPath": "/workspace/ops",
+      "lastActivityAt": "2026-03-29T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+Recommended agent flow:
+
+1. call `GET /api/orchestration/panes`
+2. choose a `targetId`
+3. split it into `backendName` + `paneId`
+4. call `read`
+5. only then call a write operation
+
 ## Relay Operations
 
 ## Pane-level operations

@@ -11,6 +11,7 @@
 
 - `smux` 의 local pane orchestration 방식과 현재 hub/agent session relay 방식을 비교한 문서 `docs/smux-orchestration-draft.md` 추가
 - smux 스타일의 read-before-write 규칙과 pane-first targeting 원칙을 정리한 `docs/agent-orchestration-protocol.md` 추가
+- `docs/agent-orchestration-protocol.md` 에 agent-friendly pane discovery endpoint (`GET /api/orchestration/panes`) 사용 규칙 반영
 - session-level distributed orchestration(`read`, `send-text-no-enter`, `send-keys`, `message`) 구현 범위를 스펙/테스트 문서에 반영
 - session-level distributed orchestration API 구현:
   - backend `read`
@@ -27,8 +28,10 @@
   - backend `GET /api/panes`
   - backend pane id 기준 `read` / `send-text` / `send-text-no-enter` / `send-keys` / `message`
   - hub `GET /api/panes`
+  - hub `GET /api/orchestration/panes`
   - hub pane relay `read` / `send-text` / `send-text-no-enter` / `send-keys` / `message`
 - pane relay read guard 추가 (`sourcePaneId` -> `targetPaneId`)
+- agent가 pane target을 쉽게 이해하도록 `backendName/paneId` summary 와 endpoint 안내를 주는 orchestration pane discovery API 추가
 - relay 감사 로그에 operation 종류와 payload 종류(`text`, `keys`, `lines`)가 남도록 보강
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
@@ -42,7 +45,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`54 passed`)
+- `npm test`: pass (`57 passed`)
 
 ## 2026-03-28
 
