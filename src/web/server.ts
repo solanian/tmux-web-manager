@@ -12,6 +12,7 @@ import {
   aggregateBackendStates,
   appendJsonLine,
   authHeaders,
+  buildRelayAuditRecord,
   fetchBackendState,
   fetchJson,
   getBackendByName,
@@ -112,31 +113,47 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
 
       if (req.method === 'POST' && url.pathname === '/api/relay/send-text') {
         const body = await readJsonBody(req);
-        const relayRequest = normalizeRelaySendTextRequest(body);
-        const targetBackend = getBackendByName(store, relayRequest.targetBackendName);
-        if (!targetBackend) {
-          sendJson(res, 404, { error: `Unknown backend name: ${relayRequest.targetBackendName}` });
-          return;
+        try {
+          const relayRequest = normalizeRelaySendTextRequest(body);
+          const targetBackend = getBackendByName(store, relayRequest.targetBackendName);
+          if (!targetBackend) {
+            const errorMessage = `Unknown backend name: ${relayRequest.targetBackendName}`;
+            appendJsonLine(
+              relayLogPath,
+              buildRelayAuditRecord(body, {
+                result: 'error',
+                error: errorMessage,
+              }),
+            );
+            sendJson(res, 404, { error: errorMessage });
+            return;
+          }
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-text`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ text: relayRequest.text }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              result: 'error',
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+          throw error;
         }
-        const sourceBackend = getBackendByName(store, relayRequest.sourceBackendName);
-        const payload = await fetchJson<{ ok: true }>(
-          targetBackend,
-          `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-text`,
-          {
-            method: 'POST',
-            body: JSON.stringify({ text: relayRequest.text }),
-          },
-        );
-        appendJsonLine(relayLogPath, {
-          timestamp: new Date().toISOString(),
-          sourceBackendName: sourceBackend?.name || relayRequest.sourceBackendName,
-          sourceSessionName: relayRequest.sourceSessionName,
-          targetBackendId: targetBackend.id,
-          targetBackendName: targetBackend.name,
-          targetSessionName: relayRequest.targetSessionName,
-          text: relayRequest.text,
-        });
-        sendJson(res, 200, payload);
         return;
       }
 

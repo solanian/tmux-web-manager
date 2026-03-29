@@ -116,6 +116,18 @@ export interface RelaySendTextRequest {
   text: string;
 }
 
+export interface RelayAuditRecord {
+  timestamp: string;
+  sourceBackendName: string;
+  sourceSessionName: string;
+  targetBackendName: string;
+  targetSessionName: string;
+  text: string;
+  result: 'ok' | 'error';
+  error?: string;
+  targetBackendId?: string;
+}
+
 export function normalizeRelaySendTextRequest(
   body: Record<string, unknown>,
 ): RelaySendTextRequest {
@@ -145,6 +157,28 @@ export function normalizeRelaySendTextRequest(
     targetBackendName,
     targetSessionName,
     text,
+  };
+}
+
+export function buildRelayAuditRecord(
+  body: Record<string, unknown>,
+  outcome: {
+    result: 'ok' | 'error';
+    error?: string;
+    targetBackend?: BackendRecord;
+    timestamp?: string;
+  },
+): RelayAuditRecord {
+  return {
+    timestamp: outcome.timestamp || new Date().toISOString(),
+    sourceBackendName: outcome.targetBackend ? String(body.sourceBackendName || '').trim() : String(body.sourceBackendName || '').trim(),
+    sourceSessionName: String(body.sourceSessionName || '').trim(),
+    targetBackendName: outcome.targetBackend?.name || String(body.targetBackendName || '').trim(),
+    targetSessionName: String(body.targetSessionName || '').trim(),
+    text: String(body.text || ''),
+    result: outcome.result,
+    ...(outcome.error ? { error: outcome.error } : {}),
+    ...(outcome.targetBackend ? { targetBackendId: outcome.targetBackend.id } : {}),
   };
 }
 

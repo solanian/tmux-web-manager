@@ -12,11 +12,12 @@
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
 - relay 대상 식별 충돌을 막기 위해 backend registry 저장 시 backend 이름 unique 제약(대소문자 무시)을 추가
+- relay 감사 로그에 `result`(`ok`/`error`)와 실패 `error` 메시지를 함께 기록하도록 보강
 
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`34 passed`)
+- `npm test`: pass (`38 passed`)
 
 ## 2026-03-28
 

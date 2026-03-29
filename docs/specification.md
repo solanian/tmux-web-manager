@@ -34,6 +34,7 @@
 - session 삭제 시 대상 `agent` 의 session delete API 를 호출해야 함
 - hub 는 tunnel/relay 역할로 `sourceBackendName`, `sourceSessionName`, `targetBackendName`, `targetSessionName`, `text` 조합의 요청을 받아 target session에 text 입력을 전달할 수 있어야 함
 - hub relay 요청은 source/target backend 이름, source/target session 이름, text, time 정보를 감사 로그로 남길 수 있어야 함
+- relay 감사 로그는 성공/실패 결과와 실패 원인(error message)을 함께 남길 수 있어야 함
 - relay 로그 `timestamp`는 ISO 8601 UTC 형식이어야 함
 - 중앙 terminal WebSocket 은 대상 `agent` 의 terminal WebSocket 을 proxy 해야 함
 - web UI 는 backend 관리 폼, session 생성 폼, session 목록, xterm.js terminal, 하단 composer UI 를 제공해야 함

@@ -1,6 +1,13 @@
+import fs from 'node:fs';
+import http from 'node:http';
+import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildRelayAuditRecord,
   buildSessionPathSummary,
   createWebServer,
   findSessionNameById,
@@ -127,6 +134,71 @@ describe('normalizeRelaySendTextRequest', () => {
   });
 });
 
+describe('buildRelayAuditRecord', () => {
+  it('records successful relay attempts with result metadata', () => {
+    expect(
+      buildRelayAuditRecord(
+        {
+          sourceBackendName: 'server-a',
+          sourceSessionName: 'build',
+          targetBackendName: 'server-b',
+          targetSessionName: 'ops',
+          text: 'echo ok',
+        },
+        {
+          result: 'ok',
+          timestamp: '2026-03-29T00:00:00.000Z',
+          targetBackend: {
+            id: 'backend-1',
+            name: 'server-b',
+            baseUrl: 'http://server-b',
+            authToken: 'secret',
+            createdAt: '2026-03-29T00:00:00.000Z',
+            updatedAt: '2026-03-29T00:00:00.000Z',
+          },
+        },
+      ),
+    ).toEqual({
+      timestamp: '2026-03-29T00:00:00.000Z',
+      sourceBackendName: 'server-a',
+      sourceSessionName: 'build',
+      targetBackendName: 'server-b',
+      targetSessionName: 'ops',
+      text: 'echo ok',
+      result: 'ok',
+      targetBackendId: 'backend-1',
+    });
+  });
+
+  it('records failed relay attempts with error metadata', () => {
+    expect(
+      buildRelayAuditRecord(
+        {
+          sourceBackendName: 'server-a',
+          sourceSessionName: 'build',
+          targetBackendName: 'server-b',
+          targetSessionName: 'ops',
+          text: 'echo fail',
+        },
+        {
+          result: 'error',
+          error: 'HTTP 500 from http://server-b/api/sessions',
+          timestamp: '2026-03-29T00:00:00.000Z',
+        },
+      ),
+    ).toEqual({
+      timestamp: '2026-03-29T00:00:00.000Z',
+      sourceBackendName: 'server-a',
+      sourceSessionName: 'build',
+      targetBackendName: 'server-b',
+      targetSessionName: 'ops',
+      text: 'echo fail',
+      result: 'error',
+      error: 'HTTP 500 from http://server-b/api/sessions',
+    });
+  });
+});
+
 describe('renderHtmlPage', () => {
   it('renders mobile sidebar controls, tabs, modals, and compact list markup', () => {
     const html = renderHtmlPage();
@@ -216,4 +288,224 @@ describe('createWebServer', () => {
     expect(server).toHaveProperty('start');
     expect(server).toHaveProperty('stop');
   });
+
+  it('logs successful relay attempts with ok result', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-relay-ok-'));
+    const targetPort = await getFreePort();
+    const hubPort = await getFreePort();
+    const targetServer = http.createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/api/sessions/by-name/ops/send-text') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/health') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/sessions') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ sessions: [] }));
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    await listen(targetServer, targetPort);
+
+    const store = new BackendRegistryStore(root);
+    store.save({
+      name: 'server-b',
+      baseUrl: `http://127.0.0.1:${targetPort}`,
+      authToken: '',
+    });
+    const server = createWebServer(
+      {
+        mode: 'main',
+        host: '127.0.0.1',
+        port: hubPort,
+        baseUrl: `http://127.0.0.1:${hubPort}`,
+        dataDir: root,
+        centralDataDir: path.join(root, 'central'),
+        backendDataDir: path.join(root, 'backend'),
+        allowedRoots: [root],
+        backendHost: '127.0.0.1',
+        backendPort: 8788,
+        backendPublicUrl: 'http://127.0.0.1:8788',
+        backendName: 'local',
+        backendAuthToken: '',
+        tmuxSocketMode: 'default',
+        tmuxSocketName: 'tfw',
+        sessionPrefix: 'tfw',
+        ohMyTmuxConfigPath: '/opt/oh-my-tmux/.tmux.conf',
+        backendAuthTokenPath: path.join(root, 'token'),
+      },
+      store,
+    );
+    await server.start();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceBackendName: 'server-a',
+          sourceSessionName: 'build',
+          targetBackendName: 'server-b',
+          targetSessionName: 'ops',
+          text: 'echo ok',
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const logLines = fs
+        .readFileSync(path.join(root, 'central', 'relay-log.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(logLines.at(-1)).toMatchObject({
+        sourceBackendName: 'server-a',
+        sourceSessionName: 'build',
+        targetBackendName: 'server-b',
+        targetSessionName: 'ops',
+        text: 'echo ok',
+        result: 'ok',
+      });
+    } finally {
+      await server.stop();
+      await closeServer(targetServer);
+    }
+  });
+
+  it('logs failed relay attempts with error result', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-relay-error-'));
+    const targetPort = await getFreePort();
+    const hubPort = await getFreePort();
+    const targetServer = http.createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/api/sessions/by-name/ops/send-text') {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: 'boom' }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/health') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/sessions') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ sessions: [] }));
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    await listen(targetServer, targetPort);
+
+    const store = new BackendRegistryStore(root);
+    store.save({
+      name: 'server-b',
+      baseUrl: `http://127.0.0.1:${targetPort}`,
+      authToken: '',
+    });
+    const server = createWebServer(
+      {
+        mode: 'main',
+        host: '127.0.0.1',
+        port: hubPort,
+        baseUrl: `http://127.0.0.1:${hubPort}`,
+        dataDir: root,
+        centralDataDir: path.join(root, 'central'),
+        backendDataDir: path.join(root, 'backend'),
+        allowedRoots: [root],
+        backendHost: '127.0.0.1',
+        backendPort: 8788,
+        backendPublicUrl: 'http://127.0.0.1:8788',
+        backendName: 'local',
+        backendAuthToken: '',
+        tmuxSocketMode: 'default',
+        tmuxSocketName: 'tfw',
+        sessionPrefix: 'tfw',
+        ohMyTmuxConfigPath: '/opt/oh-my-tmux/.tmux.conf',
+        backendAuthTokenPath: path.join(root, 'token'),
+      },
+      store,
+    );
+    await server.start();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceBackendName: 'server-a',
+          sourceSessionName: 'build',
+          targetBackendName: 'server-b',
+          targetSessionName: 'ops',
+          text: 'echo fail',
+        }),
+      });
+
+      expect(response.status).toBe(500);
+
+      const logLines = fs
+        .readFileSync(path.join(root, 'central', 'relay-log.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(logLines.at(-1)).toMatchObject({
+        sourceBackendName: 'server-a',
+        sourceSessionName: 'build',
+        targetBackendName: 'server-b',
+        targetSessionName: 'ops',
+        text: 'echo fail',
+        result: 'error',
+      });
+      expect(logLines.at(-1)?.error).toMatch(/HTTP 500/);
+    } finally {
+      await server.stop();
+      await closeServer(targetServer);
+    }
+  });
 });
+
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to allocate free port'));
+        return;
+      }
+      const { port } = address;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
+}
+
+function listen(server: http.Server, port: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => resolve());
+  });
+}
+
+function closeServer(server: http.Server): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}

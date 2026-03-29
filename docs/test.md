@@ -9,6 +9,7 @@
 - session rename 시 backend/session id 와 새 session 이름 전달
 - hub relay API 가 source/target backend 이름 + source/target session 이름 + text 기준 send-text 를 전달
 - relay 감사 로그 파일에 source/target backend 이름, source/target session 이름, text가 기록
+- relay 감사 로그가 성공/실패 결과와 실패 error 메시지를 함께 기록
 - relay 요청에서 4개 name 필드와 text 외의 식별자 없이도 동작
 - 중앙 terminal WebSocket proxy 가 agent terminal stream 을 중계
 - `main` 모드가 web + local backend 를 함께 띄우는 config parse
@@ -86,7 +87,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`34 passed`)
+- `npm test`: pass (`38 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

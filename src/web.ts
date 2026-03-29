@@ -1,6 +1,7 @@
 export { renderHtmlPage } from './web/page.js';
 export { createWebServer } from './web/server.js';
 export {
+  buildRelayAuditRecord,
   buildSessionPathSummary,
   findSessionNameById,
   formatRelativeTime,
