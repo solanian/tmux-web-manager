@@ -11,6 +11,7 @@
 
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
+- `src/web/page.ts` 안의 인라인 CSS/클라이언트 스크립트를 `src/web/page-styles.ts`, `src/web/page-script.ts` 로 분리해 page 조립 책임만 남김
 - relay 대상 식별 충돌을 막기 위해 backend registry 저장 시 backend 이름 unique 제약(대소문자 무시)을 추가
 - relay 감사 로그에 `result`(`ok`/`error`)와 실패 `error` 메시지를 함께 기록하도록 보강
 
