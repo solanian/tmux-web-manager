@@ -1,5 +1,22 @@
 # tmux-web-manager Memory
 
+## 2026-03-29
+
+### Planned Cleanup
+
+- `src/web.ts` 가 server routing, WebSocket proxy, HTML template, CSS, client-side JS, helper utilities를 한 파일에 모두 담고 있어 유지보수성이 낮음
+- 기존 `tests/web.test.ts` 의 HTML 문자열/헬퍼 회귀 검증을 유지한 채, `src/web.ts` 를 facade 로 축소하고 내부 구현을 server/page/helpers 경계로 분리할 예정
+
+### Implemented
+
+- `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
+- `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
+
+### Verification Summary
+
+- `npm run build`: pass
+- `npm test`: pass (`32 passed`)
+
 ## 2026-03-28
 
 ### Implemented

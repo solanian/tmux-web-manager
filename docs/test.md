@@ -55,6 +55,7 @@
 - backend token 입력 필드는 password 타입이며 edit 시 기존 값이 prefill 됨
 - backend token 입력 필드에는 copy/cut/clipboard shortcut 차단 로직이 존재
 - backend/session modal 에 submit error 표시용 마크업/로직이 존재
+- `src/web.ts` public export 표면이 유지된 채 내부 구현이 page/server/helpers 경계로 분리되어도 기존 회귀 테스트가 계속 통과
 - sidebar server/session 목록에 compact list 전용 클래스/마크업이 존재
 - session list 요약 문자열이 동일 requested/cwd 를 중복 표시하지 않음
 - session row 클릭으로 open 가능하고 delete confirm modal 마크업이 존재
@@ -84,7 +85,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`30 passed`)
+- `npm test`: pass (`32 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)
