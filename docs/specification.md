@@ -60,7 +60,9 @@
 - sidebar 가 열린 상태에서는 내부 닫기 버튼이 보여야 하고 햄버거 버튼은 숨겨져야 함
 - sidebar 가 닫힌 상태에서는 햄버거 버튼으로 다시 열 수 있어야 함
 - main session 화면의 하단 composer/input 영역은 viewport 높이 변화가 있어도 잘리지 않고 항상 완전히 보여야 함
+- desktop 레이아웃에서는 하단 composer를 숨길 수 있어야 하고, mobile 레이아웃에서는 계속 보여야 함
 - sidebar 전체가 통째로 스크롤되지 않고, backend/session row 목록 영역만 독립적으로 스크롤되어야 함
+- sidebar list 영역은 높이가 제한된 세로 스크롤 영역이어야 하며, row가 넘치면 스크롤바가 실제로 보여야 함
 - central API 는 최소 다음을 제공해야 함:
   - `GET /api/state`
   - `POST /api/backends`

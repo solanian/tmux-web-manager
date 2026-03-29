@@ -48,6 +48,7 @@
 - 특수키 버튼 렌더링 및 `sendKey` 경로 존재
 - 모바일 레이아웃용 sticky composer CSS 존재
 - mobile 에서 sidebar toggle 버튼과 off-canvas/sidebar drawer 구조 존재
+- composer가 desktop에서는 숨겨지고 mobile에서만 보이는 CSS가 존재
 - sidebar 에 `Servers` / `Sessions` 탭이 존재하고 탭 panel 구분 마크업이 존재
 - backend/session 생성·수정 폼은 modal 마크업으로 존재하고 상시 sidebar 에 노출되지 않음
 - backend modal 에 agent token 입력 필드와 안내 문구가 존재
@@ -64,6 +65,7 @@
 - sidebar open/closed 상태에 따라 햄버거/닫기 버튼 표시 규칙 CSS가 존재
 - main/composer 레이아웃에 `100dvh` 또는 하단 입력 영역 비클리핑을 위한 CSS가 존재
 - sidebar list 영역 전용 스크롤 CSS(`overflow: hidden` on sidebar shell + `overflow: auto` on list region)가 존재
+- sidebar tab/section/list에 높이 제한용 flex/height CSS가 존재
 
 ## Commands
 

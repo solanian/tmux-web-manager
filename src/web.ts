@@ -281,7 +281,7 @@ export function renderHtmlPage(): string {
     .sidebarTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
     .sidebarTab { min-height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #0d1520; color: var(--muted); font-weight: 600; cursor: pointer; }
     .sidebarTab.active { color: var(--text); background: var(--panel-alt); border-color: #2563eb; box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25) inset; }
-    .tabPanel { flex: 1; min-height: 0; overflow: hidden; }
+    .tabPanel { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; }
     .tabPanel[hidden] { display: none !important; }
     #main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
     #terminalBar { flex-shrink: 0; padding: 14px 16px; border-bottom: 1px solid var(--border); background: rgba(16, 25, 38, 0.9); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
@@ -291,7 +291,7 @@ export function renderHtmlPage(): string {
     #fontSizeLabel { min-width: 48px; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--muted); }
     #terminalShell { display: flex; min-height: 0; padding: 8px 8px 0; overflow: hidden; }
     #terminal { flex: 1; min-width: 0; min-height: 0; width: 100%; height: auto; }
-    #composer { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px max(16px, calc(12px + env(safe-area-inset-bottom))); border-top: 1px solid var(--border); background: rgba(16, 25, 38, 0.94); }
+    #composer { display: none; position: relative; flex-direction: column; gap: 8px; padding: 12px 16px max(16px, calc(12px + env(safe-area-inset-bottom))); border-top: 1px solid var(--border); background: rgba(16, 25, 38, 0.94); }
     #composerKeys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
     .composerKey, button, select, input { font: inherit; }
     .composerKey, .actionButton, button { min-height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); padding: 8px 10px; cursor: pointer; }
@@ -301,7 +301,7 @@ export function renderHtmlPage(): string {
     .online { color: #bbf7d0; border-color: #166534; }
     .offline { color: #fecaca; border-color: #7f1d1d; }
     .section { margin-bottom: 20px; }
-    .sidebarScrollSection { display: flex; flex-direction: column; min-height: 0; }
+    .sidebarScrollSection { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; margin-bottom: 0; }
     .sectionHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
     .section h2, .sectionHeader h2 { margin: 0; font-size: 15px; }
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
@@ -311,7 +311,7 @@ export function renderHtmlPage(): string {
     .row > * { flex: 1; }
     .list { display: flex; flex-direction: column; gap: 8px; }
     .cmuxList { gap: 6px; }
-    .listScroll { flex: 1; min-height: 0; overflow: auto; padding-right: 4px; }
+    .listScroll { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow-x: hidden; overflow-y: auto; padding-right: 4px; overscroll-behavior: contain; }
     .item { border: 1px solid var(--border); border-radius: 14px; padding: 10px; background: rgba(21, 34, 51, 0.64); }
     .cmuxItem { border-radius: 12px; padding: 9px 10px; background: linear-gradient(180deg, rgba(14, 23, 36, 0.96), rgba(10, 17, 28, 0.96)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); cursor: pointer; transition: border-color 90ms ease, box-shadow 90ms ease, transform 90ms ease, background 90ms ease; }
     .cmuxItem:hover { border-color: #36506e; background: linear-gradient(180deg, rgba(17, 29, 45, 0.98), rgba(11, 21, 33, 0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 8px 18px rgba(2, 6, 23, 0.18); }
@@ -355,6 +355,7 @@ export function renderHtmlPage(): string {
       body[data-sidebar-open="true"] #sidebarBackdrop { opacity: 1; pointer-events: auto; }
       #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: min(88vw, 360px); z-index: 40; border-right: 1px solid var(--border); transform: translateX(-100%); transition: transform 160ms ease; box-shadow: 0 20px 45px rgba(0, 0, 0, 0.38); opacity: 1; padding-left: 16px; padding-right: 16px; }
       body[data-sidebar-open="true"] #sidebar { transform: translateX(0); }
+      #composer { display: flex; }
       #composerKeys { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .modal { padding: 16px; align-items: flex-end; }
       .modalPanel { width: 100%; max-height: 86vh; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }

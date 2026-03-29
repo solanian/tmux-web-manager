@@ -155,6 +155,9 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('body[data-sidebar-open="false"] #sidebarClose');
     expect(html).toContain('#sidebar { display: flex; flex-direction: column; overflow: hidden;');
     expect(html).toContain('class="list cmuxList listScroll"');
+    expect(html).toContain('.tabPanel { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; }');
+    expect(html).toContain('.sidebarScrollSection { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; margin-bottom: 0; }');
+    expect(html).toContain('.listScroll { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow-x: hidden; overflow-y: auto;');
     expect(html).toContain("item.addEventListener('click', () => openTerminal(session))");
     expect(html).toContain('renderSessions();');
     expect(html).toContain('state.sidebarOpen = !isMobileLayout();');
@@ -170,7 +173,8 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('height: 100dvh;');
     expect(html).toContain('#main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto;');
     expect(html).toContain('#terminalShell { display: flex; min-height: 0; padding: 8px 8px 0; overflow: hidden; }');
-    expect(html).toContain('#composer { position: relative; display: flex; flex-direction: column;');
+    expect(html).toContain('#composer { display: none; position: relative; flex-direction: column;');
+    expect(html).toContain('#composer { display: flex; }');
     expect(html).toContain('scrollbar-width: thin;');
     expect(html).toContain('::-webkit-scrollbar');
     expect(html).toContain('id="fontSizeDecrease"');
