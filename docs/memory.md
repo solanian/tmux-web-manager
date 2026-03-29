@@ -9,6 +9,27 @@
 
 ### Implemented
 
+- `smux` 의 local pane orchestration 방식과 현재 hub/agent session relay 방식을 비교한 문서 `docs/smux-orchestration-draft.md` 추가
+- smux 스타일의 read-before-write 규칙과 pane-first targeting 원칙을 정리한 `docs/agent-orchestration-protocol.md` 추가
+- session-level distributed orchestration(`read`, `send-text-no-enter`, `send-keys`, `message`) 구현 범위를 스펙/테스트 문서에 반영
+- session-level distributed orchestration API 구현:
+  - backend `read`
+  - backend `send-text-no-enter`
+  - backend `send-keys`
+  - backend `message`
+  - hub relay `read`
+  - hub relay `send-text-no-enter`
+  - hub relay `send-keys`
+  - hub relay `message`
+- hub relay write 계열에 recent read guard 추가
+- pane-level orchestration 전환은 tmux `paneId` 기준(`%12`)으로 진행하며, session-level API와 병행 제공 예정
+- pane-aware orchestration API 구현:
+  - backend `GET /api/panes`
+  - backend pane id 기준 `read` / `send-text` / `send-text-no-enter` / `send-keys` / `message`
+  - hub `GET /api/panes`
+  - hub pane relay `read` / `send-text` / `send-text-no-enter` / `send-keys` / `message`
+- pane relay read guard 추가 (`sourcePaneId` -> `targetPaneId`)
+- relay 감사 로그에 operation 종류와 payload 종류(`text`, `keys`, `lines`)가 남도록 보강
 - `src/web.ts` 를 public facade 로 축소하고 내부 구현을 `src/web/helpers.ts`, `src/web/page.ts`, `src/web/server.ts` 로 분리
 - `renderHtmlPage`, `createWebServer`, relay/session helper export 표면은 유지해 기존 import 경로와 테스트가 그대로 동작하도록 정리
 - `src/web/page.ts` 안의 인라인 CSS/클라이언트 스크립트를 `src/web/page-styles.ts`, `src/web/page-script.ts` 로 분리해 page 조립 책임만 남김
@@ -21,7 +42,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`38 passed`)
+- `npm test`: pass (`54 passed`)
 
 ## 2026-03-28
 

@@ -8,8 +8,12 @@
 - session 생성 시 backend 선택, 작업 경로, optional session 이름 전달
 - session rename 시 backend/session id 와 새 session 이름 전달
 - hub relay API 가 source/target backend 이름 + source/target session 이름 + text 기준 send-text 를 전달
+- hub relay API 가 source/target backend 이름 + source/target session 이름 기준으로 `send-text-no-enter`, `send-keys`, `message`, `read` 를 전달
+- hub pane relay API 가 source/target backend 이름 + source/target pane id 기준으로 `send-text`, `send-text-no-enter`, `send-keys`, `message`, `read` 를 전달
 - relay 감사 로그 파일에 source/target backend 이름, source/target session 이름, text가 기록
 - relay 감사 로그가 성공/실패 결과와 실패 error 메시지를 함께 기록
+- relay 감사 로그가 operation 종류와 `text`/`keys`/`lines` payload 요약을 함께 기록
+- relay write 계열 동작이 prior `read` 없이 호출되면 거부
 - relay 요청에서 4개 name 필드와 text 외의 식별자 없이도 동작
 - 중앙 terminal WebSocket proxy 가 agent terminal stream 을 중계
 - `main` 모드가 web + local backend 를 함께 띄우는 config parse
@@ -24,6 +28,11 @@
 - tmux session id 생성과 optional session name 반영
 - backend auth token 자동 생성/보존 및 token 없이는 API 접근 불가
 - session name 기준 send-text + auto-enter API
+- session name 기준 send-text-no-enter API
+- session name 기준 send-keys API
+- session name 기준 message API
+- session name 기준 read API
+- pane id 기준 pane list/read/send-text/send-text-no-enter/send-keys/message API
 - tmux session rename API
 - tmux 입력 매핑과 `send-keys` 경로
 - 기본 tmux socket mode 가 host default tmux 를 사용
@@ -91,7 +100,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`38 passed`)
+- `npm test`: pass (`54 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

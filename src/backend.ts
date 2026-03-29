@@ -12,9 +12,16 @@ import {
   createTmuxSession,
   getPaneWorkingDirectory,
   getSessionActivityAt,
+  listTmuxPanes,
   listTmuxSessions,
+  paneExists,
+  readPaneOutput,
+  readPaneOutputById,
   renameTmuxSession,
   sendInput,
+  sendInputToPane,
+  sendKeys,
+  sendKeysToPane,
   sessionExists,
   stopTmuxSession,
   type ManagedTmuxOptions,
@@ -51,6 +58,44 @@ function isAuthorized(headers: http.IncomingHttpHeaders, authToken: string): boo
 
 export function appendEnter(text: string): string {
   return `${text}\r`;
+}
+
+export function normalizeSessionReadLines(value: unknown, fallback = 50): number {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number.parseInt(value, 10)
+        : fallback;
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.max(1, Math.min(500, Math.floor(parsed)));
+}
+
+export function normalizeSessionKeys(body: Record<string, unknown>): string[] {
+  const keys = Array.isArray(body.keys)
+    ? body.keys
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+    : [];
+  if (keys.length === 0) {
+    throw new Error('keys is required');
+  }
+  return keys;
+}
+
+export function buildSessionMessageText(
+  sourceBackendName: string,
+  sourceSessionName: string,
+  text: string,
+  timestamp = new Date().toISOString(),
+): string {
+  const normalizedText = text.trim();
+  if (!normalizedText) {
+    throw new Error('text is required');
+  }
+  return `[relay from:${sourceBackendName}/${sourceSessionName} at:${timestamp}] ${normalizedText}`;
 }
 
 export function mergeDiscoveredSessions(
@@ -211,6 +256,12 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
         return;
       }
 
+      if (req.method === 'GET' && url.pathname === '/api/panes') {
+        const panes = await listTmuxPanes(tmuxOptions);
+        sendJson(res, 200, { panes });
+        return;
+      }
+
       if (req.method === 'POST' && url.pathname === '/api/sessions') {
         const body = await readJsonBody(req);
         const requestedPath = String(body.path || '').trim();
@@ -255,6 +306,190 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
       }
 
       if (
+        req.method === 'GET' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/read')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/read'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        const lines = normalizeSessionReadLines(url.searchParams.get('lines'));
+        const output = await readPaneOutputById(paneId, lines, tmuxOptions);
+        sendJson(res, 200, { paneId, lines, output });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/send-text')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/send-text'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (!text) {
+          sendJson(res, 400, { error: 'text is required' });
+          return;
+        }
+
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        await sendInputToPane(paneId, appendEnter(text), tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/send-text-no-enter')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/send-text-no-enter'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (!text) {
+          sendJson(res, 400, { error: 'text is required' });
+          return;
+        }
+
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        await sendInputToPane(paneId, text, tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/send-keys')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/send-keys'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const keys = normalizeSessionKeys(body);
+
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        await sendKeysToPane(paneId, keys, tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/panes/by-id/') &&
+        url.pathname.endsWith('/message')
+      ) {
+        const encodedPaneId = url.pathname
+          .slice('/api/panes/by-id/'.length, -'/message'.length)
+          .replace(/\/+$/, '');
+        const paneId = decodeURIComponent(encodedPaneId);
+        if (!paneId) {
+          sendJson(res, 400, { error: 'paneId is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const sourceBackendName = String(body.fromBackendName || '').trim();
+        const sourcePaneId = String(body.fromPaneId || '').trim();
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (!sourceBackendName) {
+          sendJson(res, 400, { error: 'fromBackendName is required' });
+          return;
+        }
+        if (!sourcePaneId) {
+          sendJson(res, 400, { error: 'fromPaneId is required' });
+          return;
+        }
+        if (!text) {
+          sendJson(res, 400, { error: 'text is required' });
+          return;
+        }
+
+        if (!(await paneExists(paneId, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux pane id: ${paneId}` });
+          return;
+        }
+
+        await sendInputToPane(
+          paneId,
+          appendEnter(buildSessionMessageText(sourceBackendName, sourcePaneId, text)),
+          tmuxOptions,
+        );
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'GET' &&
+        url.pathname.startsWith('/api/sessions/by-name/') &&
+        url.pathname.endsWith('/read')
+      ) {
+        const encodedSessionName = url.pathname
+          .slice('/api/sessions/by-name/'.length, -'/read'.length)
+          .replace(/\/+$/, '');
+        const sessionName = decodeURIComponent(encodedSessionName);
+        if (!sessionName) {
+          sendJson(res, 400, { error: 'sessionName is required' });
+          return;
+        }
+
+        if (!(await sessionExists(sessionName, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux session name: ${sessionName}` });
+          return;
+        }
+
+        const lines = normalizeSessionReadLines(url.searchParams.get('lines'));
+        const output = await readPaneOutput(sessionName, lines, tmuxOptions);
+        sendJson(res, 200, { sessionName, lines, output });
+        return;
+      }
+
+      if (
         req.method === 'POST' &&
         url.pathname.startsWith('/api/sessions/by-name/') &&
         url.pathname.endsWith('/send-text')
@@ -281,6 +516,109 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
         }
 
         await sendInput(sessionName, appendEnter(text), tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/sessions/by-name/') &&
+        url.pathname.endsWith('/send-text-no-enter')
+      ) {
+        const encodedSessionName = url.pathname
+          .slice('/api/sessions/by-name/'.length, -'/send-text-no-enter'.length)
+          .replace(/\/+$/, '');
+        const sessionName = decodeURIComponent(encodedSessionName);
+        if (!sessionName) {
+          sendJson(res, 400, { error: 'sessionName is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (!text) {
+          sendJson(res, 400, { error: 'text is required' });
+          return;
+        }
+
+        if (!(await sessionExists(sessionName, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux session name: ${sessionName}` });
+          return;
+        }
+
+        await sendInput(sessionName, text, tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/sessions/by-name/') &&
+        url.pathname.endsWith('/send-keys')
+      ) {
+        const encodedSessionName = url.pathname
+          .slice('/api/sessions/by-name/'.length, -'/send-keys'.length)
+          .replace(/\/+$/, '');
+        const sessionName = decodeURIComponent(encodedSessionName);
+        if (!sessionName) {
+          sendJson(res, 400, { error: 'sessionName is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const keys = normalizeSessionKeys(body);
+
+        if (!(await sessionExists(sessionName, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux session name: ${sessionName}` });
+          return;
+        }
+
+        await sendKeys(sessionName, keys, tmuxOptions);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (
+        req.method === 'POST' &&
+        url.pathname.startsWith('/api/sessions/by-name/') &&
+        url.pathname.endsWith('/message')
+      ) {
+        const encodedSessionName = url.pathname
+          .slice('/api/sessions/by-name/'.length, -'/message'.length)
+          .replace(/\/+$/, '');
+        const sessionName = decodeURIComponent(encodedSessionName);
+        if (!sessionName) {
+          sendJson(res, 400, { error: 'sessionName is required' });
+          return;
+        }
+
+        const body = await readJsonBody(req);
+        const sourceBackendName = String(body.fromBackendName || '').trim();
+        const sourceSessionName = String(body.fromSessionName || '').trim();
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (!sourceBackendName) {
+          sendJson(res, 400, { error: 'fromBackendName is required' });
+          return;
+        }
+        if (!sourceSessionName) {
+          sendJson(res, 400, { error: 'fromSessionName is required' });
+          return;
+        }
+        if (!text) {
+          sendJson(res, 400, { error: 'text is required' });
+          return;
+        }
+
+        if (!(await sessionExists(sessionName, tmuxOptions))) {
+          sendJson(res, 404, { error: `Unknown tmux session name: ${sessionName}` });
+          return;
+        }
+
+        await sendInput(
+          sessionName,
+          appendEnter(buildSessionMessageText(sourceBackendName, sourceSessionName, text)),
+          tmuxOptions,
+        );
         sendJson(res, 200, { ok: true });
         return;
       }

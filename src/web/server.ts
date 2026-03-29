@@ -7,8 +7,10 @@ import type { AppConfig } from '../config.js';
 import { createLogger } from '../logger.js';
 import { BackendRegistryStore } from '../store.js';
 import type { AggregatedSessionRecord } from '../types.js';
+import { createRelayPaneReadGuard, createRelayReadGuard } from './relay-guard.js';
 import { renderHtmlPage } from './page.js';
 import {
+  aggregateBackendPanes,
   aggregateBackendStates,
   appendJsonLine,
   authHeaders,
@@ -17,6 +19,12 @@ import {
   fetchJson,
   getBackendByName,
   normalizeBaseUrl,
+  normalizeRelayKeysRequest,
+  normalizeRelayMessageRequest,
+  normalizeRelayPaneKeysRequest,
+  normalizeRelayPaneReadRequest,
+  normalizeRelayPaneSendTextRequest,
+  normalizeRelayReadRequest,
   normalizeRelaySendTextRequest,
   readJsonBody,
   sendJson,
@@ -25,8 +33,21 @@ import {
 
 const logger = createLogger('WEB');
 
+async function resolveTargetBackendOrThrow(
+  store: BackendRegistryStore,
+  targetBackendName: string,
+) {
+  const targetBackend = getBackendByName(store, targetBackendName);
+  if (!targetBackend) {
+    throw new Error(`Unknown backend name: ${targetBackendName}`);
+  }
+  return targetBackend;
+}
+
 export function createWebServer(config: AppConfig, store: BackendRegistryStore) {
   const relayLogPath = path.join(config.centralDataDir, 'relay-log.jsonl');
+  const relayReadGuard = createRelayReadGuard();
+  const relayPaneReadGuard = createRelayPaneReadGuard();
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -46,6 +67,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
           backends: backendStates,
           sessions,
         });
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/panes') {
+        const panes = await aggregateBackendPanes(store);
+        sendJson(res, 200, { panes });
         return;
       }
 
@@ -115,19 +142,8 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
         const body = await readJsonBody(req);
         try {
           const relayRequest = normalizeRelaySendTextRequest(body);
-          const targetBackend = getBackendByName(store, relayRequest.targetBackendName);
-          if (!targetBackend) {
-            const errorMessage = `Unknown backend name: ${relayRequest.targetBackendName}`;
-            appendJsonLine(
-              relayLogPath,
-              buildRelayAuditRecord(body, {
-                result: 'error',
-                error: errorMessage,
-              }),
-            );
-            sendJson(res, 404, { error: errorMessage });
-            return;
-          }
+          relayReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
           const payload = await fetchJson<{ ok: true }>(
             targetBackend,
             `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-text`,
@@ -139,19 +155,438 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
           appendJsonLine(
             relayLogPath,
             buildRelayAuditRecord(body, {
+              operation: 'send-text',
               result: 'ok',
               targetBackend,
             }),
           );
           sendJson(res, 200, payload);
         } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
           appendJsonLine(
             relayLogPath,
             buildRelayAuditRecord(body, {
+              operation: 'send-text',
               result: 'error',
-              error: error instanceof Error ? error.message : String(error),
+              error: message,
             }),
           );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/send-text-no-enter') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelaySendTextRequest(body);
+          relayReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-text-no-enter`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ text: relayRequest.text }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'send-text-no-enter',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'send-text-no-enter',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/send-keys') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayKeysRequest(body);
+          relayReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/send-keys`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ keys: relayRequest.keys }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'send-keys',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'send-keys',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/message') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayMessageRequest(body);
+          relayReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/message`,
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                fromBackendName: relayRequest.sourceBackendName,
+                fromSessionName: relayRequest.sourceSessionName,
+                text: relayRequest.text,
+              }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'message',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'message',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/read') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayReadRequest(body);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const search = relayRequest.lines ? `?lines=${encodeURIComponent(String(relayRequest.lines))}` : '';
+          const payload = await fetchJson<{ sessionName: string; lines: number; output: string }>(
+            targetBackend,
+            `/api/sessions/by-name/${encodeURIComponent(relayRequest.targetSessionName)}/read${search}`,
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'read',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          relayReadGuard.markRead(relayRequest);
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'read',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-text') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayPaneSendTextRequest(body);
+          relayPaneReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-text`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ text: relayRequest.text }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-text',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-text',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-text-no-enter') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayPaneSendTextRequest(body);
+          relayPaneReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-text-no-enter`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ text: relayRequest.text }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-text-no-enter',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-text-no-enter',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/send-keys') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayPaneKeysRequest(body);
+          relayPaneReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/send-keys`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ keys: relayRequest.keys }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-keys',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-send-keys',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/message') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayPaneSendTextRequest(body);
+          relayPaneReadGuard.requireRecentRead(relayRequest);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const payload = await fetchJson<{ ok: true }>(
+            targetBackend,
+            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/message`,
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                fromBackendName: relayRequest.sourceBackendName,
+                fromPaneId: relayRequest.sourcePaneId,
+                text: relayRequest.text,
+              }),
+            },
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-message',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-message',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
+          if (/^Recent read required/.test(message)) {
+            sendJson(res, 409, { error: message });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/relay/panes/read') {
+        const body = await readJsonBody(req);
+        try {
+          const relayRequest = normalizeRelayPaneReadRequest(body);
+          const targetBackend = await resolveTargetBackendOrThrow(store, relayRequest.targetBackendName);
+          const search = relayRequest.lines ? `?lines=${encodeURIComponent(String(relayRequest.lines))}` : '';
+          const payload = await fetchJson<{ paneId: string; lines: number; output: string }>(
+            targetBackend,
+            `/api/panes/by-id/${encodeURIComponent(relayRequest.targetPaneId)}/read${search}`,
+          );
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-read',
+              result: 'ok',
+              targetBackend,
+            }),
+          );
+          relayPaneReadGuard.markRead(relayRequest);
+          sendJson(res, 200, payload);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          appendJsonLine(
+            relayLogPath,
+            buildRelayAuditRecord(body, {
+              operation: 'pane-read',
+              result: 'error',
+              error: message,
+            }),
+          );
+          if (/^Unknown backend name: /.test(message)) {
+            sendJson(res, 404, { error: message });
+            return;
+          }
           throw error;
         }
         return;

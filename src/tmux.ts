@@ -3,7 +3,7 @@ import path from 'node:path';
 import { execFile, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type { TmuxSocketMode } from './types.js';
+import type { TmuxPaneRecord, TmuxSocketMode } from './types.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -192,6 +192,15 @@ async function getPrimaryPaneTarget(
   return paneId;
 }
 
+export async function paneExists(paneId: string, options: ManagedTmuxOptions): Promise<boolean> {
+  try {
+    const stdout = await tmux(['display-message', '-p', '-t', paneId, '#{pane_id}'], options);
+    return stdout.trim() === paneId;
+  } catch {
+    return false;
+  }
+}
+
 export async function getPaneWorkingDirectory(
   tmuxSessionName: string,
   options: ManagedTmuxOptions,
@@ -260,6 +269,56 @@ export async function listTmuxSessions(
   return sessions;
 }
 
+export async function listTmuxPanes(options: ManagedTmuxOptions): Promise<TmuxPaneRecord[]> {
+  let stdout = '';
+  try {
+    stdout = await tmux(
+      [
+        'list-panes',
+        '-a',
+        '-F',
+        '#{pane_id}\t#{session_name}\t#{window_index}\t#{pane_index}\t#{pane_current_path}\t#{pane_current_command}\t#{pane_title}\t#{@name}\t#{pane_activity}',
+      ],
+      options,
+    );
+  } catch (error) {
+    if (isNoServerRunningError(error)) {
+      return [];
+    }
+    throw error;
+  }
+
+  return stdout
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [
+        paneId,
+        sessionName,
+        windowIndexRaw,
+        paneIndexRaw,
+        currentPath,
+        currentCommand,
+        title,
+        label,
+        activityEpochRaw,
+      ] = line.split('\t');
+      return {
+        paneId: paneId || '',
+        sessionName: sessionName || '',
+        windowIndex: Number.parseInt(windowIndexRaw || '0', 10),
+        paneIndex: Number.parseInt(paneIndexRaw || '0', 10),
+        currentPath: currentPath || '',
+        currentCommand: currentCommand || '',
+        title: title || '',
+        label: label || '',
+        lastActivityAt: epochSecondsToIso(activityEpochRaw),
+      };
+    })
+    .filter((pane) => Boolean(pane.paneId && pane.sessionName));
+}
+
 export function splitInput(data: string): InputPart[] {
   const parts: InputPart[] = [];
   let literal = '';
@@ -305,6 +364,14 @@ export async function sendInput(
   options: ManagedTmuxOptions,
 ): Promise<void> {
   const paneTarget = await getPrimaryPaneTarget(tmuxSessionName, options);
+  await sendInputToPane(paneTarget, data, options);
+}
+
+export async function sendInputToPane(
+  paneTarget: string,
+  data: string,
+  options: ManagedTmuxOptions,
+): Promise<void> {
   for (const part of splitInput(data)) {
     if (part.type === 'literal') {
       await tmux(['send-keys', '-t', paneTarget, '-l', '--', part.value], options);
@@ -312,4 +379,48 @@ export async function sendInput(
       await tmux(['send-keys', '-t', paneTarget, part.value], options);
     }
   }
+}
+
+export async function sendKeys(
+  tmuxSessionName: string,
+  keys: string[],
+  options: ManagedTmuxOptions,
+): Promise<void> {
+  const paneTarget = await getPrimaryPaneTarget(tmuxSessionName, options);
+  await sendKeysToPane(paneTarget, keys, options);
+}
+
+export async function sendKeysToPane(
+  paneTarget: string,
+  keys: string[],
+  options: ManagedTmuxOptions,
+): Promise<void> {
+  for (const key of keys) {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) {
+      continue;
+    }
+    await tmux(['send-keys', '-t', paneTarget, normalizedKey], options);
+  }
+}
+
+export async function readPaneOutput(
+  tmuxSessionName: string,
+  lines: number,
+  options: ManagedTmuxOptions,
+): Promise<string> {
+  const paneTarget = await getPrimaryPaneTarget(tmuxSessionName, options);
+  return readPaneOutputById(paneTarget, lines, options);
+}
+
+export async function readPaneOutputById(
+  paneTarget: string,
+  lines: number,
+  options: ManagedTmuxOptions,
+): Promise<string> {
+  const normalizedLines = Math.max(1, Math.min(500, Math.floor(lines)));
+  return tmux(
+    ['capture-pane', '-t', paneTarget, '-p', '-J', '-S', `-${normalizedLines}`],
+    options,
+  );
 }

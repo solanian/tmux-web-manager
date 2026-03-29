@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appendEnter,
+  buildSessionMessageText,
   mergeDiscoveredSessions,
+  normalizeSessionKeys,
+  normalizeSessionReadLines,
   pruneHiddenSessions,
   sortSessionsByRecentActivity,
 } from '../src/backend.js';
@@ -103,5 +106,36 @@ describe('sortSessionsByRecentActivity', () => {
 describe('appendEnter', () => {
   it('appends an Enter keystroke to submitted text payloads', () => {
     expect(appendEnter('test')).toBe('test\r');
+  });
+});
+
+describe('normalizeSessionReadLines', () => {
+  it('clamps line counts to a safe positive range', () => {
+    expect(normalizeSessionReadLines('25')).toBe(25);
+    expect(normalizeSessionReadLines('-1')).toBe(50);
+    expect(normalizeSessionReadLines(9999)).toBe(500);
+  });
+});
+
+describe('normalizeSessionKeys', () => {
+  it('normalizes and validates key arrays', () => {
+    expect(normalizeSessionKeys({ keys: [' Enter ', 'C-c', ''] })).toEqual(['Enter', 'C-c']);
+  });
+
+  it('rejects missing keys', () => {
+    expect(() => normalizeSessionKeys({})).toThrow(/keys is required/);
+  });
+});
+
+describe('buildSessionMessageText', () => {
+  it('prepends sender metadata to relay messages', () => {
+    expect(
+      buildSessionMessageText(
+        'mac-mini',
+        'build',
+        'please review',
+        '2026-03-29T00:00:00.000Z',
+      ),
+    ).toBe('[relay from:mac-mini/build at:2026-03-29T00:00:00.000Z] please review');
   });
 });

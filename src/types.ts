@@ -28,6 +28,24 @@ export interface AggregatedSessionRecord extends ManagedSessionRecord {
   backendBaseUrl: string;
 }
 
+export interface TmuxPaneRecord {
+  paneId: string;
+  sessionName: string;
+  windowIndex: number;
+  paneIndex: number;
+  currentPath: string;
+  currentCommand: string;
+  title: string;
+  label: string;
+  lastActivityAt?: string;
+}
+
+export interface AggregatedPaneRecord extends TmuxPaneRecord {
+  backendId: string;
+  backendName: string;
+  backendBaseUrl: string;
+}
+
 export interface BackendHealth {
   ok: true;
   serverName: string;

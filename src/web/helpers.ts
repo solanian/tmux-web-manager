@@ -3,7 +3,14 @@ import http from 'node:http';
 import path from 'node:path';
 
 import type { BackendRegistryStore } from '../store.js';
-import type { AggregatedSessionRecord, BackendHealth, BackendRecord, BackendState } from '../types.js';
+import type {
+  AggregatedPaneRecord,
+  AggregatedSessionRecord,
+  BackendHealth,
+  BackendRecord,
+  BackendState,
+  TmuxPaneRecord,
+} from '../types.js';
 
 export function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
@@ -82,8 +89,35 @@ export async function fetchBackendState(backend: BackendRecord): Promise<Backend
   }
 }
 
+export async function fetchBackendPanes(
+  backend: BackendRecord,
+): Promise<AggregatedPaneRecord[]> {
+  const payload = await fetchJson<{ panes: TmuxPaneRecord[] }>(backend, '/api/panes');
+  return payload.panes.map((pane) => ({
+    ...pane,
+    backendId: backend.id,
+    backendName: backend.name,
+    backendBaseUrl: backend.baseUrl,
+  }));
+}
+
 export async function aggregateBackendStates(store: BackendRegistryStore): Promise<BackendState[]> {
   return Promise.all(store.all().map((backend) => fetchBackendState(backend)));
+}
+
+export async function aggregateBackendPanes(
+  store: BackendRegistryStore,
+): Promise<AggregatedPaneRecord[]> {
+  const paneGroups = await Promise.all(
+    store.all().map(async (backend) => {
+      try {
+        return await fetchBackendPanes(backend);
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return paneGroups.flat();
 }
 
 export function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown): void {
@@ -108,29 +142,76 @@ export function appendJsonLine(filePath: string, payload: unknown): void {
   fs.appendFileSync(filePath, `${JSON.stringify(payload)}\n`);
 }
 
-export interface RelaySendTextRequest {
+export interface RelayTargetRequest {
   sourceBackendName: string;
   sourceSessionName: string;
   targetBackendName: string;
   targetSessionName: string;
+}
+
+export interface RelaySendTextRequest extends RelayTargetRequest {
   text: string;
+}
+
+export interface RelayPaneTargetRequest {
+  sourceBackendName: string;
+  sourcePaneId: string;
+  targetBackendName: string;
+  targetPaneId: string;
+}
+
+export interface RelayPaneSendTextRequest extends RelayPaneTargetRequest {
+  text: string;
+}
+
+export interface RelayKeysRequest extends RelayTargetRequest {
+  keys: string[];
+}
+
+export interface RelayReadRequest extends RelayTargetRequest {
+  lines?: number;
+}
+
+export interface RelayMessageRequest extends RelayTargetRequest {
+  text: string;
+}
+
+export interface RelayPaneKeysRequest extends RelayPaneTargetRequest {
+  keys: string[];
+}
+
+export interface RelayPaneReadRequest extends RelayPaneTargetRequest {
+  lines?: number;
 }
 
 export interface RelayAuditRecord {
   timestamp: string;
+  operation:
+    | 'send-text'
+    | 'send-text-no-enter'
+    | 'send-keys'
+    | 'message'
+    | 'read'
+    | 'pane-send-text'
+    | 'pane-send-text-no-enter'
+    | 'pane-send-keys'
+    | 'pane-message'
+    | 'pane-read';
   sourceBackendName: string;
   sourceSessionName: string;
   targetBackendName: string;
   targetSessionName: string;
-  text: string;
   result: 'ok' | 'error';
   error?: string;
   targetBackendId?: string;
+  text?: string;
+  keys?: string[];
+  lines?: number;
+  sourcePaneId?: string;
+  targetPaneId?: string;
 }
 
-export function normalizeRelaySendTextRequest(
-  body: Record<string, unknown>,
-): RelaySendTextRequest {
+function normalizeRelayTargetRequest(body: Record<string, unknown>): RelayTargetRequest {
   const sourceBackendName = String(body.sourceBackendName || '').trim();
   if (!sourceBackendName) {
     throw new Error('sourceBackendName is required');
@@ -147,38 +228,183 @@ export function normalizeRelaySendTextRequest(
   if (!targetSessionName) {
     throw new Error('targetSessionName is required');
   }
-  const text = String(body.text || '');
-  if (!text) {
-    throw new Error('text is required');
-  }
   return {
     sourceBackendName,
     sourceSessionName,
     targetBackendName,
     targetSessionName,
+  };
+}
+
+function normalizeRelayPaneTargetRequest(
+  body: Record<string, unknown>,
+): RelayPaneTargetRequest {
+  const sourceBackendName = String(body.sourceBackendName || '').trim();
+  if (!sourceBackendName) {
+    throw new Error('sourceBackendName is required');
+  }
+  const sourcePaneId = String(body.sourcePaneId || '').trim();
+  if (!sourcePaneId) {
+    throw new Error('sourcePaneId is required');
+  }
+  const targetBackendName = String(body.targetBackendName || '').trim();
+  if (!targetBackendName) {
+    throw new Error('targetBackendName is required');
+  }
+  const targetPaneId = String(body.targetPaneId || '').trim();
+  if (!targetPaneId) {
+    throw new Error('targetPaneId is required');
+  }
+  return {
+    sourceBackendName,
+    sourcePaneId,
+    targetBackendName,
+    targetPaneId,
+  };
+}
+
+export function normalizeRelaySendTextRequest(
+  body: Record<string, unknown>,
+): RelaySendTextRequest {
+  const target = normalizeRelayTargetRequest(body);
+  const text = String(body.text || '');
+  if (!text) {
+    throw new Error('text is required');
+  }
+  return {
+    ...target,
     text,
+  };
+}
+
+export function normalizeRelayMessageRequest(
+  body: Record<string, unknown>,
+): RelayMessageRequest {
+  return normalizeRelaySendTextRequest(body);
+}
+
+export function normalizeRelayKeysRequest(
+  body: Record<string, unknown>,
+): RelayKeysRequest {
+  const target = normalizeRelayTargetRequest(body);
+  const keys = Array.isArray(body.keys)
+    ? body.keys.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (keys.length === 0) {
+    throw new Error('keys is required');
+  }
+  return {
+    ...target,
+    keys,
+  };
+}
+
+export function normalizeRelayReadRequest(
+  body: Record<string, unknown>,
+): RelayReadRequest {
+  const target = normalizeRelayTargetRequest(body);
+  const rawLines = body.lines;
+  const parsedLines =
+    typeof rawLines === 'number'
+      ? rawLines
+      : typeof rawLines === 'string' && rawLines.trim()
+        ? Number.parseInt(rawLines, 10)
+        : undefined;
+  return {
+    ...target,
+    ...(Number.isFinite(parsedLines) && parsedLines! > 0
+      ? { lines: Math.max(1, Math.min(500, Math.floor(parsedLines!))) }
+      : {}),
+  };
+}
+
+export function normalizeRelayPaneSendTextRequest(
+  body: Record<string, unknown>,
+): RelayPaneSendTextRequest {
+  const target = normalizeRelayPaneTargetRequest(body);
+  const text = String(body.text || '');
+  if (!text) {
+    throw new Error('text is required');
+  }
+  return {
+    ...target,
+    text,
+  };
+}
+
+export function normalizeRelayPaneKeysRequest(
+  body: Record<string, unknown>,
+): RelayPaneKeysRequest {
+  const target = normalizeRelayPaneTargetRequest(body);
+  const keys = Array.isArray(body.keys)
+    ? body.keys.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (keys.length === 0) {
+    throw new Error('keys is required');
+  }
+  return {
+    ...target,
+    keys,
+  };
+}
+
+export function normalizeRelayPaneReadRequest(
+  body: Record<string, unknown>,
+): RelayPaneReadRequest {
+  const target = normalizeRelayPaneTargetRequest(body);
+  const rawLines = body.lines;
+  const parsedLines =
+    typeof rawLines === 'number'
+      ? rawLines
+      : typeof rawLines === 'string' && rawLines.trim()
+        ? Number.parseInt(rawLines, 10)
+        : undefined;
+  return {
+    ...target,
+    ...(Number.isFinite(parsedLines) && parsedLines! > 0
+      ? { lines: Math.max(1, Math.min(500, Math.floor(parsedLines!))) }
+      : {}),
   };
 }
 
 export function buildRelayAuditRecord(
   body: Record<string, unknown>,
   outcome: {
+    operation: RelayAuditRecord['operation'];
     result: 'ok' | 'error';
     error?: string;
     targetBackend?: BackendRecord;
     timestamp?: string;
   },
 ): RelayAuditRecord {
+  const normalizedKeys = Array.isArray(body.keys)
+    ? body.keys.map((value) => String(value || '').trim()).filter(Boolean)
+    : undefined;
+  const parsedLines =
+    typeof body.lines === 'number'
+      ? Math.floor(body.lines)
+      : typeof body.lines === 'string' && body.lines.trim()
+        ? Number.parseInt(String(body.lines), 10)
+        : undefined;
   return {
     timestamp: outcome.timestamp || new Date().toISOString(),
-    sourceBackendName: outcome.targetBackend ? String(body.sourceBackendName || '').trim() : String(body.sourceBackendName || '').trim(),
+    operation: outcome.operation,
+    sourceBackendName: String(body.sourceBackendName || '').trim(),
     sourceSessionName: String(body.sourceSessionName || '').trim(),
     targetBackendName: outcome.targetBackend?.name || String(body.targetBackendName || '').trim(),
     targetSessionName: String(body.targetSessionName || '').trim(),
-    text: String(body.text || ''),
     result: outcome.result,
     ...(outcome.error ? { error: outcome.error } : {}),
     ...(outcome.targetBackend ? { targetBackendId: outcome.targetBackend.id } : {}),
+    ...(typeof body.text === 'string' && body.text.trim() ? { text: String(body.text) } : {}),
+    ...(normalizedKeys && normalizedKeys.length > 0 ? { keys: normalizedKeys } : {}),
+    ...(Number.isFinite(parsedLines) && parsedLines! > 0 ? { lines: parsedLines } : {}),
+    ...(typeof body.sourcePaneId === 'string' && body.sourcePaneId.trim()
+      ? { sourcePaneId: String(body.sourcePaneId).trim() }
+      : {}),
+    ...(typeof body.targetPaneId === 'string' && body.targetPaneId.trim()
+      ? { targetPaneId: String(body.targetPaneId).trim() }
+      : {}),
   };
 }
 
