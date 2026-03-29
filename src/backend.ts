@@ -20,6 +20,7 @@ import {
   type ManagedTmuxOptions,
   validateProjectPath,
 } from './tmux.js';
+import { ensureNodePtySpawnHelperExecutable } from './pty.js';
 import type { BackendHealth, ManagedSessionRecord } from './types.js';
 
 const logger = createLogger('BACKEND');
@@ -164,6 +165,10 @@ async function hydrateSession(
 }
 
 export function createBackendServer(config: AppConfig, store: ManagedSessionStore) {
+  // Some macOS installs drop the executable bit on node-pty's spawn helper,
+  // which breaks PTY attach with "posix_spawnp failed."
+  ensureNodePtySpawnHelperExecutable();
+
   const tmuxOptions: ManagedTmuxOptions = {
     socketMode: config.tmuxSocketMode,
     socketName: config.tmuxSocketName,
