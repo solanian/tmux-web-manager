@@ -14,7 +14,7 @@
 
 ### Implemented
 
-- `docs/assets/tmux-web-manager-wordmark.svg` 를 추가하고 README 상단 hero를 plain title 대신 logo wordmark 중심으로 변경
+- README 상단 hero를 외부 SVG wordmark 대신 저장소 친화적인 ASCII text wordmark로 교체
 - `README.md`, `README-ko.md` 상단 hero를 opencode 스타일에 가깝게 단순한 centered title + tagline + 언어 링크 줄로 재정리
 - `README.md`, `README-ko.md` 에 영감을 준 공개 레퍼런스(`smux`, `ttyd`, `GoTTY`, `WeTTY`) 출처 섹션 추가
 - `README.md`, `README-ko.md` 를 cyberpunk 톤의 hero/badge/jump-link 구성으로 재정리하고 상단에 EN/KO 언어 선택 링크를 명시
