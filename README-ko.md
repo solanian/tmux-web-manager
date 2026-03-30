@@ -1,23 +1,18 @@
 <div align="center">
 
-# tmux-web-manager
+<img src="./docs/assets/tmux-web-manager-wordmark.svg" alt="tmux-web-manager" width="860" />
 
-**`[ 허브 온라인 // 멀티 서버 TMUX 제어 ]`**
+여러 서버 터미널을 위한 오픈소스 tmux 허브.
 
-여러 서버 환경을 위한 웹 기반 tmux 세션 매니저입니다.
-
-**Language**: [EN](./README.md) · [KO](./README-ko.md)
-
-<img alt="mode-main" src="https://img.shields.io/badge/HUB-main-ff2bd6?style=for-the-badge&logo=tmux&logoColor=black" />
-<img alt="mode-sub" src="https://img.shields.io/badge/AGENT-sub-00f0ff?style=for-the-badge&logo=gnu-bash&logoColor=black" />
-<img alt="transport" src="https://img.shields.io/badge/TRANSPORT-HTTP%20%2B%20WebSocket-b8ff00?style=for-the-badge&logo=socketdotio&logoColor=black" />
-<img alt="terminal" src="https://img.shields.io/badge/TERMINAL-xterm.js-111111?style=for-the-badge&logo=windowsterminal&logoColor=00f0ff" />
+[English](./README.md) | [한국어](./README-ko.md)
 
 </div>
 
 > **운영 브리프**  
 > `tmux-web-manager`는 중앙 **hub**(`main`)와 여러 **agent**(`sub`)를 중심으로 동작하는 분산형 tmux 제어 도구입니다.  
 > 여러 머신의 tmux 세션과 pane을 한곳에서 모아 보여주고, xterm.js로 붙어서 조작하며, relay/orchestration API와 얇은 CLI까지 제공합니다.
+
+---
 
 ## ▣ 바로가기
 
@@ -179,6 +174,17 @@ docker compose up --build
 - `main`: `8787`
 - local backend: `8788`
 - extra `sub` backend: `8790`
+
+## ▣ Inspiration / 참고한 프로젝트
+
+이 프로젝트는 완전히 진공 상태에서 나온 것이 아니라, 몇 가지 오픈소스에서 인터랙션 방향과 웹 터미널 전달 방식, agent 지향 tmux 제어 아이디어를 많이 참고했습니다:
+
+- [`ShawnPana/smux`](https://github.com/ShawnPana/smux) — pane label/resolve, `read`-before-`write` guard, agent-to-agent tmux 자동화 패턴에 큰 영향을 준 프로젝트입니다.
+- [`tsl0922/ttyd`](https://github.com/tsl0922/ttyd) — 가벼운 web terminal 제공 방식과 실용적인 브라우저 터미널 UX를 참고했습니다.
+- [`sorenisanerd/gotty`](https://github.com/sorenisanerd/gotty) — terminal을 웹 애플리케이션처럼 노출하는 초기 아이디어에 참고가 되었습니다.
+- [`butlerx/wetty`](https://github.com/butlerx/wetty) — HTTP/HTTPS 기반 browser terminal UX와 remote terminal access 패턴을 참고했습니다.
+
+이 프로젝트는 여기에 더해 **hub/agent registry**, **tmux session + pane orchestration**, **relay logging**, **agent-local / hub-backed CLI**를 한 시스템으로 결합하는 쪽으로 확장했습니다.
 
 ## ▣ API 요약
 

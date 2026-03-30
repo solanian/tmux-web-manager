@@ -1,23 +1,18 @@
 <div align="center">
 
-# tmux-web-manager
+<img src="./docs/assets/tmux-web-manager-wordmark.svg" alt="tmux-web-manager" width="860" />
 
-**`[ HUB ONLINE // MULTI-SERVER TMUX CONTROL ]`**
+The open source tmux hub for multi-server terminals.
 
-A web-based tmux session manager for multi-server environments.
-
-**Language**: [EN](./README.md) · [KO](./README-ko.md)
-
-<img alt="mode-main" src="https://img.shields.io/badge/HUB-main-ff2bd6?style=for-the-badge&logo=tmux&logoColor=black" />
-<img alt="mode-sub" src="https://img.shields.io/badge/AGENT-sub-00f0ff?style=for-the-badge&logo=gnu-bash&logoColor=black" />
-<img alt="transport" src="https://img.shields.io/badge/TRANSPORT-HTTP%20%2B%20WebSocket-b8ff00?style=for-the-badge&logo=socketdotio&logoColor=black" />
-<img alt="terminal" src="https://img.shields.io/badge/TERMINAL-xterm.js-111111?style=for-the-badge&logo=windowsterminal&logoColor=00f0ff" />
+[English](./README.md) | [한국어](./README-ko.md)
 
 </div>
 
 > **Operator brief**  
 > `tmux-web-manager` is a distributed tmux control surface built around a central **hub** (`main`) and one or more remote/local **agents** (`sub`).  
 > It aggregates tmux sessions and panes across machines, lets operators attach through xterm.js, and exposes relay/orchestration APIs and a thin CLI for agent-to-agent workflows.
+
+---
 
 ## ▣ Jump Links
 
@@ -178,6 +173,17 @@ This starts:
 
 - `main` on port `8787` with a local backend on `8788`
 - `sub` on port `8790` as an extra remote-style backend server
+
+## ▣ Inspiration / lineage
+
+This project did not come from a vacuum. A few open-source projects were especially useful as reference points for interaction style, web-terminal delivery, and agent-oriented tmux control:
+
+- [`ShawnPana/smux`](https://github.com/ShawnPana/smux) — pane label/resolve, `read`-before-`write` guard, and agent-to-agent tmux automation patterns.
+- [`tsl0922/ttyd`](https://github.com/tsl0922/ttyd) — lightweight terminal-over-web delivery and practical web terminal ergonomics.
+- [`sorenisanerd/gotty`](https://github.com/sorenisanerd/gotty) — early terminal-as-web-application ideas that informed browser-facing terminal exposure.
+- [`butlerx/wetty`](https://github.com/butlerx/wetty) — browser-based terminal UX and remote terminal access patterns over HTTP/HTTPS.
+
+This project diverges by combining a **hub/agent registry**, **tmux session + pane orchestration**, **relay logging**, and an **agent-local, hub-backed CLI** in one system.
 
 ## ▣ API Summary
 
