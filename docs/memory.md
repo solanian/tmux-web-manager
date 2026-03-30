@@ -14,6 +14,7 @@
 
 ### Implemented
 
+- README ASCII wordmark를 다른 형태로 재디자인하고 상단 배지에 실제 hub web UI 색상(`--bg`, `--panel`, `--panel-alt`, `--border`, `--text`, `--accent`)을 반영
 - README 상단 hero를 외부 SVG wordmark 대신 저장소 친화적인 ASCII text wordmark로 교체
 - `README.md`, `README-ko.md` 상단 hero를 opencode 스타일에 가깝게 단순한 centered title + tagline + 언어 링크 줄로 재정리
 - `README.md`, `README-ko.md` 에 영감을 준 공개 레퍼런스(`smux`, `ttyd`, `GoTTY`, `WeTTY`) 출처 섹션 추가
