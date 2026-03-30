@@ -1,31 +1,8 @@
 <div align="center">
 
-```text
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ████████╗███╗   ███╗██╗   ██╗██╗  ██╗      ██╗    ██╗███████╗██████╗ ┃
-┃  ╚══██╔══╝████╗ ████║██║   ██║╚██╗██╔╝      ██║    ██║██╔════╝██╔══██╗┃
-┃     ██║   ██╔████╔██║██║   ██║ ╚███╔╝       ██║ █╗ ██║█████╗  ██████╔╝┃
-┃     ██║   ██║╚██╔╝██║██║   ██║ ██╔██╗       ██║███╗██║██╔══╝  ██╔══██╗┃
-┃     ██║   ██║ ╚═╝ ██║╚██████╔╝██╔╝ ██╗      ╚███╔███╔╝███████╗██████╔╝┃
-┃     ╚═╝   ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝       ╚══╝╚══╝ ╚══════╝╚═════╝ ┃
-┃                                                                       ┃
-┃      ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗    ┃
-┃      ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗   ┃
-┃      ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝   ┃
-┃      ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗   ┃
-┃      ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║   ┃
-┃      ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝   ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-```
+<img src="./docs/assets/tmux-web-manager-wordmark.svg" alt="tmux-web-manager wordmark" width="980" />
 
 여러 서버 터미널을 위한 오픈소스 tmux 허브.
-
-<img alt="bg" src="https://img.shields.io/badge/BG-091018?style=flat-square&labelColor=091018&color=091018" />
-<img alt="panel" src="https://img.shields.io/badge/PANEL-101926?style=flat-square&labelColor=101926&color=101926" />
-<img alt="panel-alt" src="https://img.shields.io/badge/PANEL_ALT-152233?style=flat-square&labelColor=152233&color=152233" />
-<img alt="border" src="https://img.shields.io/badge/BORDER-223349?style=flat-square&labelColor=223349&color=223349" />
-<img alt="text" src="https://img.shields.io/badge/TEXT-e5edf7?style=flat-square&labelColor=e5edf7&color=e5edf7" />
-<img alt="accent" src="https://img.shields.io/badge/ACCENT-4ade80?style=flat-square&labelColor=4ade80&color=4ade80" />
 
 [English](./README.md) | [한국어](./README-ko.md)
 

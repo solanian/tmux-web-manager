@@ -14,6 +14,8 @@
 
 ### Implemented
 
+- README hero에서 UI 팔레트 badge를 제거하고, 실제 색상은 SVG wordmark 텍스트 자체에만 적용되도록 정리
+- GitHub markdown의 ASCII 코드블록은 색상 적용이 되지 않아, hub UI 팔레트를 실제로 반영하는 ASCII-style SVG wordmark로 다시 전환
 - README ASCII wordmark를 다른 형태로 재디자인하고 상단 배지에 실제 hub web UI 색상(`--bg`, `--panel`, `--panel-alt`, `--border`, `--text`, `--accent`)을 반영
 - README 상단 hero를 외부 SVG wordmark 대신 저장소 친화적인 ASCII text wordmark로 교체
 - `README.md`, `README-ko.md` 상단 hero를 opencode 스타일에 가깝게 단순한 centered title + tagline + 언어 링크 줄로 재정리

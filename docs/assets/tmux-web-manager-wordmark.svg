@@ -1,0 +1,25 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">tmux-web-manager colored wordmark</title>
+  <desc id="desc">ASCII-styled colored wordmark using the tmux-web-manager hub UI palette.</desc>
+  <style>
+    .bg { fill: #091018; }
+    .panel { fill: #101926; }
+    .border { stroke: #223349; stroke-width: 3; fill: none; }
+    .line { fill: #e5edf7; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 24px; font-weight: 700; }
+    .green { fill: #4ade80; }
+    .blue { fill: #60a5fa; }
+    .muted { fill: #8ea1b8; }
+  </style>
+  <rect width="1400" height="420" rx="28" class="bg"/>
+  <rect x="26" y="26" width="1348" height="368" rx="24" class="panel"/>
+  <rect x="26" y="26" width="1348" height="368" rx="24" class="border"/>
+  <text x="72" y="118" class="line muted">┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓</text>
+  <text x="72" y="150" class="line">┃ <tspan class="green">████████╗</tspan><tspan class="blue">███╗   ███╗</tspan>██╗   ██╗██╗  ██╗      <tspan class="muted">██╗    ██╗</tspan><tspan class="green">███████╗</tspan><tspan class="blue">██████╗ </tspan>┃</text>
+  <text x="72" y="182" class="line">┃ <tspan class="green">╚══██╔══╝</tspan><tspan class="blue">████╗ ████║</tspan>██║   ██║╚██╗██╔╝      <tspan class="muted">██║    ██║</tspan><tspan class="green">██╔════╝</tspan><tspan class="blue">██╔══██╗</tspan>┃</text>
+  <text x="72" y="214" class="line">┃ <tspan class="green">   ██║   </tspan><tspan class="blue">██╔████╔██║</tspan>██║   ██║ ╚███╔╝       <tspan class="muted">██║ █╗ ██║</tspan><tspan class="green">█████╗  </tspan><tspan class="blue">██████╔╝</tspan>┃</text>
+  <text x="72" y="246" class="line">┃ <tspan class="green">   ██║   </tspan><tspan class="blue">██║╚██╔╝██║</tspan>██║   ██║ ██╔██╗       <tspan class="muted">██║███╗██║</tspan><tspan class="green">██╔══╝  </tspan><tspan class="blue">██╔══██╗</tspan>┃</text>
+  <text x="72" y="278" class="line">┃ <tspan class="green">   ██║   </tspan><tspan class="blue">██║ ╚═╝ ██║</tspan>╚██████╔╝██╔╝ ██╗      <tspan class="muted">╚███╔███╔╝</tspan><tspan class="green">███████╗</tspan><tspan class="blue">██████╔╝</tspan>┃</text>
+  <text x="72" y="310" class="line">┃ <tspan class="green">   ╚═╝   </tspan><tspan class="blue">╚═╝     ╚═╝</tspan> ╚═════╝ ╚═╝  ╚═╝       <tspan class="muted">╚══╝╚══╝ </tspan><tspan class="green">╚══════╝</tspan><tspan class="blue">╚═════╝ </tspan>┃</text>
+  <text x="72" y="342" class="line muted">┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</text>
+  <text x="82" y="378" class="line muted" style="font-size:18px;letter-spacing:2px">HUB // AGENT // SESSION + PANE ORCHESTRATION</text>
+</svg>
