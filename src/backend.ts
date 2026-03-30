@@ -19,6 +19,7 @@ import {
   readPaneOutputById,
   renameTmuxSession,
   resolvePaneIdByLabel,
+  buildUtf8LocaleEnv,
   sendInput,
   sendInputToPane,
   sendKeys,
@@ -767,7 +768,7 @@ export function createBackendServer(config: AppConfig, store: ManagedSessionStor
             rows: 36,
             cwd: liveSession.currentPath || liveSession.requestedPath,
             env: {
-              ...process.env,
+              ...buildUtf8LocaleEnv(process.env),
               TERM: 'xterm-256color',
             },
           },

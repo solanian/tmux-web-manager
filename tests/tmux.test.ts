@@ -6,10 +6,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applyDerivedPaneLabels,
+  buildUtf8LocaleEnv,
   buildDerivedPaneLabel,
   buildManagedSessionName,
   buildManagedTmuxConfigContents,
   isNoServerRunningError,
+  resolveUtf8Locale,
   splitInput,
   validateProjectPath,
 } from '../src/tmux.js';
@@ -47,6 +49,36 @@ describe('buildManagedTmuxConfigContents', () => {
 describe('buildManagedSessionName', () => {
   it('uses the optional requested session name when provided', () => {
     expect(buildManagedSessionName('fleet', 'abc123456', 'my session')).toBe('my-session');
+  });
+});
+
+describe('resolveUtf8Locale', () => {
+  it('preserves an existing UTF-8 locale', () => {
+    expect(resolveUtf8Locale({ LANG: 'ko_KR.UTF-8' })).toBe('ko_KR.UTF-8');
+  });
+
+  it('upgrades a locale without an encoding suffix to UTF-8', () => {
+    expect(resolveUtf8Locale({ LANG: 'ko_KR' })).toBe('ko_KR.UTF-8');
+  });
+
+  it('falls back to en_US.UTF-8 when no usable locale is present', () => {
+    expect(resolveUtf8Locale({ LC_ALL: 'C' })).toBe('en_US.UTF-8');
+  });
+});
+
+describe('buildUtf8LocaleEnv', () => {
+  it('forces LANG, LC_ALL, and LC_CTYPE to UTF-8 while preserving unrelated vars', () => {
+    expect(
+      buildUtf8LocaleEnv({
+        LANG: 'ko_KR',
+        TERM: 'tmux-256color',
+      }),
+    ).toMatchObject({
+      LANG: 'ko_KR.UTF-8',
+      LC_ALL: 'ko_KR.UTF-8',
+      LC_CTYPE: 'ko_KR.UTF-8',
+      TERM: 'tmux-256color',
+    });
   });
 });
 
