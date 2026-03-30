@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import type { TmuxPaneRecord, TmuxSocketMode } from './types.js';
 
 const execFileAsync = promisify(execFile);
+const DEFAULT_UTF8_LOCALE = 'en_US.UTF-8';
 
 export interface ManagedTmuxOptions {
   socketMode: TmuxSocketMode;
@@ -101,6 +102,43 @@ export function buildManagedTmuxConfig(configDir: string, sourcePath: string): s
   return configPath;
 }
 
+function normalizeLocaleCandidate(value: string | undefined): string | undefined {
+  const candidate = value?.trim();
+  return candidate ? candidate : undefined;
+}
+
+export function resolveUtf8Locale(env: NodeJS.ProcessEnv = process.env): string {
+  const candidates = [
+    normalizeLocaleCandidate(env['LC_ALL']),
+    normalizeLocaleCandidate(env['LC_CTYPE']),
+    normalizeLocaleCandidate(env['LANG']),
+  ].filter((value): value is string => Boolean(value));
+
+  const existingUtf8 = candidates.find((value) => /utf-?8/i.test(value));
+  if (existingUtf8) {
+    return existingUtf8;
+  }
+
+  const localeBase = candidates
+    .map((value) => value.split('.', 1)[0]!.split('@', 1)[0]!.trim())
+    .find((value) => /^[A-Za-z]{2}_[A-Za-z]{2}$/.test(value));
+  if (localeBase) {
+    return `${localeBase}.UTF-8`;
+  }
+
+  return DEFAULT_UTF8_LOCALE;
+}
+
+export function buildUtf8LocaleEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const locale = resolveUtf8Locale(env);
+  return {
+    ...env,
+    LANG: locale,
+    LC_ALL: locale,
+    LC_CTYPE: locale,
+  };
+}
+
 async function tmux(args: string[], options: ManagedTmuxOptions): Promise<string> {
   const tmuxArgs =
     options.socketMode === 'dedicated'
@@ -109,7 +147,10 @@ async function tmux(args: string[], options: ManagedTmuxOptions): Promise<string
   const { stdout } = await execFileAsync(
     'tmux',
     tmuxArgs,
-    { encoding: 'utf8' },
+    {
+      encoding: 'utf8',
+      env: buildUtf8LocaleEnv(process.env),
+    },
   );
   return stdout;
 }
