@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./docs/assets/tmux-web-manager-wordmark.svg" alt="tmux-web-manager wordmark" width="980" />
+<img src="./docs/assets/tmux-web-manager-wordmark.svg" alt="tmux-web-manager" width="860" />
 
 The open source tmux hub for multi-server terminals.
 
