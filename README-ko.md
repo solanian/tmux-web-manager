@@ -1,24 +1,43 @@
+<div align="center">
+
 # tmux-web-manager
+
+**`[ 허브 온라인 // 멀티 서버 TMUX 제어 ]`**
 
 여러 서버 환경을 위한 웹 기반 tmux 세션 매니저입니다.
 
-`tmux-web-manager`는 두 가지 역할로 구성된 분산형 tmux 웹 관리 도구입니다.
+**Language**: [EN](./README.md) · [KO](./README-ko.md)
 
-- `main`: 중앙 xterm.js 웹 UI와 로컬 tmux backend 서버를 함께 실행
-- `sub`: 원격 머신용 tmux backend 서버만 실행
+<img alt="mode-main" src="https://img.shields.io/badge/HUB-main-ff2bd6?style=for-the-badge&logo=tmux&logoColor=black" />
+<img alt="mode-sub" src="https://img.shields.io/badge/AGENT-sub-00f0ff?style=for-the-badge&logo=gnu-bash&logoColor=black" />
+<img alt="transport" src="https://img.shields.io/badge/TRANSPORT-HTTP%20%2B%20WebSocket-b8ff00?style=for-the-badge&logo=socketdotio&logoColor=black" />
+<img alt="terminal" src="https://img.shields.io/badge/TERMINAL-xterm.js-111111?style=for-the-badge&logo=windowsterminal&logoColor=00f0ff" />
 
-영문 README는 [`README.md`](./README.md)에서 볼 수 있습니다.
+</div>
 
-프로젝트 문서는 다음 파일에 정리되어 있습니다.
+> **운영 브리프**  
+> `tmux-web-manager`는 중앙 **hub**(`main`)와 여러 **agent**(`sub`)를 중심으로 동작하는 분산형 tmux 제어 도구입니다.  
+> 여러 머신의 tmux 세션과 pane을 한곳에서 모아 보여주고, xterm.js로 붙어서 조작하며, relay/orchestration API와 얇은 CLI까지 제공합니다.
 
-- [`docs/specification.md`](./docs/specification.md)
-- [`docs/memory.md`](./docs/memory.md)
-- [`docs/troubleshooting.md`](./docs/troubleshooting.md)
-- [`docs/test.md`](./docs/test.md)
+## ▣ 바로가기
 
-중앙 UI는 backend 서버 정의를 저장하고, 등록된 backend들에 있는 tmux 세션을 생성/삭제/선택할 수 있으며, 선택된 세션을 xterm.js 터미널로 표시합니다.
+- [주요 기능](#-주요-기능)
+- [환경 변수](#-환경-변수)
+- [로컬 실행](#-로컬-실행)
+- [Agent-local CLI Wrapper](#-agent-local-cli-wrapper)
+- [Native install](#-native-install)
+- [Docker Compose](#-docker-compose)
+- [API 요약](#-api-요약)
+- [프로젝트 문서](#-프로젝트-문서)
 
-## 주요 기능
+## ▣ 프로젝트 문서
+
+- [스펙](./docs/specification.md)
+- [Memory / 구현 로그](./docs/memory.md)
+- [Troubleshooting 인덱스](./docs/troubleshooting.md)
+- [테스트 계획 / 최신 결과](./docs/test.md)
+
+## ▣ 주요 기능
 
 - raw PTY 기반 `tmux attach-session` xterm.js 터미널 뷰
 - 여러 backend 서버 등록 및 영속 저장
@@ -28,7 +47,7 @@
 - 기본적으로 host의 기본 tmux server를 사용하고, 필요하면 dedicated socket mode 사용 가능
 - `main` / `sub` 실행 모드 지원
 
-## 환경 변수
+## ▣ 환경 변수
 
 - `HOST`: `main` 모드 중앙 UI bind host, 기본값 `0.0.0.0`
 - `PORT`: `main` 모드 중앙 UI 포트, 기본값 `8787`
@@ -45,7 +64,7 @@
 - `SESSION_PREFIX`: 자동 생성 세션 이름 prefix
 - `OH_MY_TMUX_CONF`: `dedicated` 모드 generated config에서 source할 oh-my-tmux config 경로
 
-## 로컬 실행
+## ▣ 로컬 실행
 
 ```bash
 npm install
@@ -89,7 +108,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```
 
-## Agent-local CLI wrapper
+## ▣ Agent-local CLI Wrapper
 
 agent shell이나 tmux pane에서 바로 사용할 수 있는 얇은 CLI wrapper도 포함되어 있습니다.
 
@@ -122,7 +141,7 @@ export TWM_SOURCE_PANE=%1
 npm run bridge -- read server-b reviewer 20
 ```
 
-## Native install
+## ▣ Native Install
 
 Docker 없이 standalone prefix에 설치:
 
@@ -149,7 +168,7 @@ cd tmux-web-manager
 $HOME/.local/share/tmux-web-manager/bin/run-main.sh
 ```
 
-## Docker Compose
+## ▣ Docker Compose
 
 ```bash
 docker compose up --build
@@ -161,7 +180,7 @@ docker compose up --build
 - local backend: `8788`
 - extra `sub` backend: `8790`
 
-## API 요약
+## ▣ API 요약
 
 중앙 web server:
 

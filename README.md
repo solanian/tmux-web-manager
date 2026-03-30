@@ -1,19 +1,43 @@
+<div align="center">
+
 # tmux-web-manager
+
+**`[ HUB ONLINE // MULTI-SERVER TMUX CONTROL ]`**
 
 A web-based tmux session manager for multi-server environments.
 
-`tmux-web-manager` is a distributed tmux web viewer built around two roles:
+**Language**: [EN](./README.md) · [KO](./README-ko.md)
 
-- `main`: starts the central xterm.js web UI and a local tmux backend server
-- `sub`: starts only a tmux backend server for a remote machine
+<img alt="mode-main" src="https://img.shields.io/badge/HUB-main-ff2bd6?style=for-the-badge&logo=tmux&logoColor=black" />
+<img alt="mode-sub" src="https://img.shields.io/badge/AGENT-sub-00f0ff?style=for-the-badge&logo=gnu-bash&logoColor=black" />
+<img alt="transport" src="https://img.shields.io/badge/TRANSPORT-HTTP%20%2B%20WebSocket-b8ff00?style=for-the-badge&logo=socketdotio&logoColor=black" />
+<img alt="terminal" src="https://img.shields.io/badge/TERMINAL-xterm.js-111111?style=for-the-badge&logo=windowsterminal&logoColor=00f0ff" />
 
-한국어 README는 [`README-ko.md`](./README-ko.md)에서 볼 수 있습니다.
+</div>
 
-Project docs live in [`docs/specification.md`](./docs/specification.md), [`docs/memory.md`](./docs/memory.md), [`docs/troubleshooting.md`](./docs/troubleshooting.md), and [`docs/test.md`](./docs/test.md).
+> **Operator brief**  
+> `tmux-web-manager` is a distributed tmux control surface built around a central **hub** (`main`) and one or more remote/local **agents** (`sub`).  
+> It aggregates tmux sessions and panes across machines, lets operators attach through xterm.js, and exposes relay/orchestration APIs and a thin CLI for agent-to-agent workflows.
 
-The central UI stores backend server definitions, lets you create/delete tmux sessions on any registered backend, and renders the selected session in the middle panel with xterm.js.
+## ▣ Jump Links
 
-## Features
+- [Features](#-features)
+- [Environment Variables](#-environment-variables)
+- [Run Locally](#-run-locally)
+- [Agent-local CLI Wrapper](#-agent-local-cli-wrapper)
+- [Native Install](#-native-install)
+- [Docker Compose](#-docker-compose)
+- [API Summary](#-api-summary)
+- [Project Docs](#-project-docs)
+
+## ▣ Project Docs
+
+- [Specification](./docs/specification.md)
+- [Memory / implementation log](./docs/memory.md)
+- [Troubleshooting index](./docs/troubleshooting.md)
+- [Test plan and latest results](./docs/test.md)
+
+## ▣ Features
 
 - xterm.js terminal view with raw PTY-backed `tmux attach-session`
 - multiple backend server registry with persistent storage
@@ -23,7 +47,7 @@ The central UI stores backend server definitions, lets you create/delete tmux se
 - tmux backend defaults to the host's default tmux server, with an optional dedicated socket mode that sources oh-my-tmux and forces mouse mode on
 - single project with `main` / `sub` modes and Docker Compose services for both
 
-## Environment variables
+## ▣ Environment Variables
 
 - `HOST`: central UI bind host in `main` mode, default `0.0.0.0`
 - `PORT`: central UI port in `main` mode, default `8787`
@@ -40,7 +64,7 @@ The central UI stores backend server definitions, lets you create/delete tmux se
 - `SESSION_PREFIX`: default prefix for auto-generated tmux session names
 - `OH_MY_TMUX_CONF`: path to the oh-my-tmux config file used only for generated managed tmux config in dedicated mode
 
-## Run locally
+## ▣ Run Locally
 
 ```bash
 npm install
@@ -84,7 +108,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now tmux-web-manager.service
 ```
 
-## Agent-local CLI wrapper
+## ▣ Agent-local CLI Wrapper
 
 The repository also ships a thin CLI wrapper for agent shells and tmux panes.
 
@@ -117,7 +141,7 @@ export TWM_SOURCE_PANE=%1
 npm run bridge -- read server-b reviewer 20
 ```
 
-## Native install
+## ▣ Native Install
 
 Install into a standalone prefix without Docker:
 
@@ -144,7 +168,7 @@ Run natively after install:
 $HOME/.local/share/tmux-web-manager/bin/run-main.sh
 ```
 
-## Docker Compose
+## ▣ Docker Compose
 
 ```bash
 docker compose up --build
@@ -155,7 +179,7 @@ This starts:
 - `main` on port `8787` with a local backend on `8788`
 - `sub` on port `8790` as an extra remote-style backend server
 
-## API summary
+## ▣ API Summary
 
 Central web server:
 

@@ -80,6 +80,7 @@
 - `src/web/page-script.ts` 가 DOM/init, UI helpers, list rendering, runtime bindings 하위 모듈을 조립하는 facade 여도 기존 HTML 회귀 테스트가 계속 통과
 - `src/web/page-script-render.ts` 와 `src/web/page-script-runtime.ts` 가 세부 fragment facade 여도 기존 HTML 회귀 테스트가 계속 통과
 - page title/sidebar heading 의 사용자 노출 이름이 `tmux manager` 로 렌더링
+- README / README-ko 상단에 EN/KO 언어 선택 링크와 cyberpunk 스타일 hero 영역이 존재
 - sidebar server/session 목록에 compact list 전용 클래스/마크업이 존재
 - session list 요약 문자열이 동일 requested/cwd 를 중복 표시하지 않음
 - session row 클릭으로 open 가능하고 delete confirm modal 마크업이 존재
@@ -111,7 +112,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`66 passed`)
+- `npm test`: pass (`70 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

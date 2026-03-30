@@ -2,6 +2,11 @@
 
 ## 2026-03-29
 
+### TODO
+
+- STT 기반 음성 입력 모드 추가
+- 인증 세션 추가
+
 ### Planned Cleanup
 
 - `src/web.ts` 가 server routing, WebSocket proxy, HTML template, CSS, client-side JS, helper utilities를 한 파일에 모두 담고 있어 유지보수성이 낮음
@@ -9,6 +14,7 @@
 
 ### Implemented
 
+- `README.md`, `README-ko.md` 를 cyberpunk 톤의 hero/badge/jump-link 구성으로 재정리하고 상단에 EN/KO 언어 선택 링크를 명시
 - `smux` 의 local pane orchestration 방식과 현재 hub/agent session relay 방식을 비교한 문서 `docs/smux-orchestration-draft.md` 추가
 - smux 스타일의 read-before-write 규칙과 pane-first targeting 원칙을 정리한 `docs/agent-orchestration-protocol.md` 추가
 - `docs/agent-orchestration-protocol.md` 에 agent-friendly pane discovery endpoint (`GET /api/orchestration/panes`) 사용 규칙 반영
@@ -61,7 +67,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`66 passed`)
+- `npm test`: pass (`70 passed`)
 - live smoke: pass (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
 
 ## 2026-03-28
