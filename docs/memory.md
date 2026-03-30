@@ -14,6 +14,7 @@
 
 ### Implemented
 
+- README SVG wordmark의 하단 분홍 accent bar를 우측으로 옮겨 텍스트 영역과 겹치지 않게 조정
 - README 상단 hero를 깨지지 않는 이전 SVG logo wordmark 버전으로 되돌림
 - `README.md`, `README-ko.md` 상단 hero를 opencode 스타일에 가깝게 단순한 centered title + tagline + 언어 링크 줄로 재정리
 - `README.md`, `README-ko.md` 에 영감을 준 공개 레퍼런스(`smux`, `ttyd`, `GoTTY`, `WeTTY`) 출처 섹션 추가
