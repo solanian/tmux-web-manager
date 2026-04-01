@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { getConfig, getUsageText } from './config.js';
+import { collectSecretPermissionWarnings, getConfig, getUsageText } from './config.js';
 import { createBackendServer } from './backend.js';
 import { createLogger } from './logger.js';
 import { BackendRegistryStore, ManagedSessionStore } from './store.js';
@@ -18,6 +18,9 @@ async function run(): Promise<void> {
 
   const config = getConfig(args);
   ensureTmuxInstalled();
+  for (const warning of collectSecretPermissionWarnings(config)) {
+    logger.warn(warning);
+  }
 
   const backendStore = new ManagedSessionStore(config.backendDataDir);
   const backend = createBackendServer(config, backendStore);

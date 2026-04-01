@@ -14,6 +14,10 @@
 
 ### Implemented
 
+- JSONL 감사 로그(auth/relay)는 일정 크기 이상에서 rotate 되도록 보강
+- secret file 권한이 너무 넓으면 startup 시 경고를 남기는 self-check 를 추가
+- reverse proxy / HTTPS 운영 주의사항을 README / README-ko 에 문서화
+- hub HTTP 응답에 CSP / nosniff / frame deny / referrer policy 등 기본 보안 헤더를 추가
 - 세션 쿠키를 `SameSite=Strict` 로 강화하고, 로그인/온보딩 성공 시 CSRF token 을 반환해 browser write 보호를 강화
 - `central/auth-log.jsonl` 감사 로그를 추가해 auth setup/login/logout, rate-limit, csrf reject 이벤트를 기록
 - hub auth에 로그인/온보딩 rate limit 을 추가하고 반복 실패 시 `429` 로 차단
@@ -83,7 +87,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`77 passed`)
+- `npm test`: pass (`78 passed`)
 - live smoke: pass (`GET /api/auth/session`, `GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
 
 ## 2026-03-28

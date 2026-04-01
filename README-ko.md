@@ -64,6 +64,13 @@
 - `SESSION_PREFIX`: 자동 생성 세션 이름 prefix
 - `OH_MY_TMUX_CONF`: `dedicated` 모드 generated config에서 source할 oh-my-tmux config 경로
 
+## ▣ Reverse proxy / HTTPS 주의사항
+
+- `BASE_URL`은 브라우저가 실제로 접속하는 외부 hub URL과 정확히 맞춰야 합니다. 예: `https://tmux.example.com`
+- HTTPS 뒤에서 운영할 때는 `HUB_SECURE_COOKIES=true` 를 권장합니다.
+- TLS를 reverse proxy에서 종료한다면 `X-Forwarded-Proto` 를 전달해 origin 검증과 secure cookie 기대값이 맞도록 해야 합니다.
+- 브라우저 세션 기반 write 요청은 origin + CSRF 검증을 통과해야 하므로, 같은 브라우저 세션 안에서는 loopback/LAN/public URL을 섞기보다 하나의 canonical hub origin만 쓰는 것이 좋습니다.
+
 ## ▣ 로컬 실행
 
 ```bash

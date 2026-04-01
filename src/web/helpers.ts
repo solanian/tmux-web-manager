@@ -137,8 +137,34 @@ export async function readJsonBody(req: http.IncomingMessage): Promise<Record<st
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
-export function appendJsonLine(filePath: string, payload: unknown): void {
+export interface JsonLineLogOptions {
+  maxBytes?: number;
+  maxFiles?: number;
+}
+
+function rotateJsonLineLog(filePath: string, options: JsonLineLogOptions): void {
+  const maxBytes = options.maxBytes ?? 1024 * 1024;
+  const maxFiles = options.maxFiles ?? 5;
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const stat = fs.statSync(filePath);
+  if (stat.size < maxBytes) {
+    return;
+  }
+  for (let index = maxFiles - 1; index >= 1; index -= 1) {
+    const current = `${filePath}.${index}`;
+    const next = `${filePath}.${index + 1}`;
+    if (fs.existsSync(current)) {
+      fs.renameSync(current, next);
+    }
+  }
+  fs.renameSync(filePath, `${filePath}.1`);
+}
+
+export function appendJsonLine(filePath: string, payload: unknown, options: JsonLineLogOptions = {}): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  rotateJsonLineLog(filePath, options);
   fs.appendFileSync(filePath, `${JSON.stringify(payload)}\n`);
 }
 

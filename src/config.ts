@@ -158,6 +158,33 @@ export function resolveRunMode(args: string[]): RunMode {
   throw new Error(`Unknown mode: ${first}`);
 }
 
+
+export function collectSecretPermissionWarnings(config: Pick<AppConfig, 'backendAuthTokenPath' | 'hubApiTokenPath' | 'hubSessionSecretPath' | 'hubAuthConfigPath'>): string[] {
+  const warnings: string[] = [];
+  const files = [
+    config.backendAuthTokenPath,
+    config.hubApiTokenPath || '',
+    config.hubSessionSecretPath || '',
+    config.hubAuthConfigPath || '',
+  ].filter(Boolean);
+
+  for (const filePath of files) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+      const stat = fs.statSync(filePath);
+      if ((stat.mode & 0o077) !== 0) {
+        warnings.push(`Secret file is too permissive: ${filePath}`);
+      }
+    } catch (error) {
+      warnings.push(`Failed to inspect secret file permissions: ${filePath} (${error instanceof Error ? error.message : String(error)})`);
+    }
+  }
+
+  return warnings;
+}
+
 export function getUsageText(): string {
   return [
     'Usage:',

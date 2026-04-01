@@ -64,6 +64,13 @@ The open source tmux hub for multi-server terminals.
 - `SESSION_PREFIX`: default prefix for auto-generated tmux session names
 - `OH_MY_TMUX_CONF`: path to the oh-my-tmux config file used only for generated managed tmux config in dedicated mode
 
+## ▣ Reverse proxy / HTTPS notes
+
+- Set `BASE_URL` to the exact external hub URL that browsers will use, for example `https://tmux.example.com`.
+- Enable `HUB_SECURE_COOKIES=true` when serving behind HTTPS.
+- If you terminate TLS at a reverse proxy, forward `X-Forwarded-Proto` so origin checks and secure-cookie expectations stay aligned.
+- Browser session writes now enforce origin + CSRF checks, so operators should use one canonical hub origin instead of mixing loopback/LAN/public URLs in the same browser session.
+
 ## ▣ Run Locally
 
 ```bash

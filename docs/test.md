@@ -2,6 +2,10 @@
 
 ## Hub / main
 
+- README / README-ko 에 reverse proxy / HTTPS 운영 주의사항이 문서화되어 있음
+- JSONL 감사 로그 append helper 가 oversized log rotation 을 지원
+- secret file permission self-check 가 group/world readable secret 파일에 대해 경고를 생성
+- hub HTML 응답에 CSP / nosniff / frame deny / referrer policy 보안 헤더가 포함
 - 세션 쿠키가 `SameSite=Strict` 이고 로그인/온보딩 성공 응답에 CSRF token 이 포함
 - `central/auth-log.jsonl` 에 auth setup/login/logout, rate-limit, csrf reject 이벤트가 기록
 - auth setup/login 반복 실패 시 rate limit(`429`) 이 적용
@@ -128,7 +132,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`77 passed`)
+- `npm test`: pass (`78 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)

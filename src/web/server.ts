@@ -37,8 +37,24 @@ import {
 
 const logger = createLogger('WEB');
 
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' ws: wss:; img-src 'self' data:; font-src 'self' data: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  'Referrer-Policy': 'same-origin',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Permissions-Policy': 'geolocation=(), camera=(), display-capture=()'
+} as const;
+
+function applySecurityHeaders(res: http.ServerResponse): void {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(key, value);
+  }
+}
+
 const DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const DEFAULT_AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
+const DEFAULT_AUDIT_LOG_MAX_BYTES = 1024 * 1024;
+const DEFAULT_AUDIT_LOG_MAX_FILES = 5;
 
 interface AuthAuditRecord {
   timestamp: string;
@@ -192,8 +208,9 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
   const relayPaneReadGuard = createRelayPaneReadGuard();
   const hubAuth = createHubAuthManager(config);
   const authLogPath = path.join(config.centralDataDir, 'auth-log.jsonl');
-  const authAttemptWindowMs = 5 * 60 * 1000;
-  const authAttemptLimit = 5;
+  const authAttemptWindowMs = DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS;
+  const authAttemptLimit = DEFAULT_AUTH_RATE_LIMIT_MAX_ATTEMPTS;
+  const auditLogOptions = { maxBytes: DEFAULT_AUDIT_LOG_MAX_BYTES, maxFiles: DEFAULT_AUDIT_LOG_MAX_FILES };
   const authAttempts = new Map<string, number[]>();
   const expectedOrigin = (() => {
     try {
@@ -210,7 +227,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       result,
       remoteAddress: getRemoteAddress(req),
       ...details,
-    } satisfies AuthAuditRecord);
+    } satisfies AuthAuditRecord, auditLogOptions);
   }
 
   function checkAuthRateLimit(req: http.IncomingMessage): string | null {
@@ -246,6 +263,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
   }
   const server = http.createServer(async (req, res) => {
     try {
+      applySecurityHeaders(res);
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
       if (req.method === 'GET' && url.pathname === '/') {

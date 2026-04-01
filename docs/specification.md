@@ -23,6 +23,7 @@
 
 ## Hub Spec
 
+- hub 응답은 CSP, nosniff, frame deny 등 기본 보안 헤더를 포함할 수 있어야 함
 - 세션 로그인/온보딩 성공 응답은 browser write 보호용 CSRF token 을 반환할 수 있어야 함
 - 세션 쿠키는 `SameSite=Strict` 로 발급할 수 있어야 함
 - hub 는 인증 관련 감사 로그(auth setup/login/logout, rate-limit, csrf reject)를 남길 수 있어야 함

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { getConfig, getUsageText, resolveRunMode } from '../src/config.js';
+import { collectSecretPermissionWarnings, getConfig, getUsageText, resolveRunMode } from '../src/config.js';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -43,7 +43,6 @@ describe('getConfig', () => {
     expect(fs.existsSync(config.backendAuthTokenPath)).toBe(true);
   });
 
-
   it('enables hub auth and provisions a hub API token when HUB_AUTH_PASSWORD is set', () => {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-config-auth-'));
     process.env['DATA_DIR'] = dataDir;
@@ -69,6 +68,23 @@ describe('getConfig', () => {
     expect(config.backendDataDir).toBe(path.join(dataDir, 'backend'));
     expect(fs.existsSync(config.centralDataDir)).toBe(true);
     expect(fs.existsSync(config.backendDataDir)).toBe(true);
+  });
+});
+
+describe('collectSecretPermissionWarnings', () => {
+  it('warns when secret files are group/world accessible', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-config-perms-'));
+    const secret = path.join(root, 'secret');
+    fs.writeFileSync(secret, 'value\n', { mode: 0o644 });
+
+    expect(
+      collectSecretPermissionWarnings({
+        backendAuthTokenPath: secret,
+        hubApiTokenPath: '',
+        hubSessionSecretPath: '',
+        hubAuthConfigPath: '',
+      }),
+    ).toEqual([`Secret file is too permissive: ${secret}`]);
   });
 });
 
