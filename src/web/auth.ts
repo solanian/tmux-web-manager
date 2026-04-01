@@ -259,6 +259,7 @@ export function createHubAuthManager(config: AppConfig) {
       onboardingRequired: false,
       configuredUsername: credentials.username,
       sessionExpiresAt: new Date(session.expiresAt).toISOString(),
+      csrfToken: session.csrfToken,
     };
   }
 

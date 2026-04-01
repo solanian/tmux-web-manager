@@ -14,6 +14,7 @@
 
 ### Implemented
 
+- authenticated browser sessions now expose their existing CSRF token via `/api/auth/session` so page reloads can keep session writes working
 - JSONL 감사 로그(auth/relay)는 일정 크기 이상에서 rotate 되도록 보강
 - secret file 권한이 너무 넓으면 startup 시 경고를 남기는 self-check 를 추가
 - reverse proxy / HTTPS 운영 주의사항을 README / README-ko 에 문서화

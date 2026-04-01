@@ -2,6 +2,7 @@
 
 ## Hub / main
 
+- authenticated `/api/auth/session` responses include CSRF token so page reloads keep browser write requests valid
 - README / README-ko 에 reverse proxy / HTTPS 운영 주의사항이 문서화되어 있음
 - JSONL 감사 로그 append helper 가 oversized log rotation 을 지원
 - secret file permission self-check 가 group/world readable secret 파일에 대해 경고를 생성
