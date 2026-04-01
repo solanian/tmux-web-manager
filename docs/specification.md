@@ -23,6 +23,10 @@
 
 ## Hub Spec
 
+- 세션 로그인/온보딩 성공 응답은 browser write 보호용 CSRF token 을 반환할 수 있어야 함
+- 세션 쿠키는 `SameSite=Strict` 로 발급할 수 있어야 함
+- hub 는 인증 관련 감사 로그(auth setup/login/logout, rate-limit, csrf reject)를 남길 수 있어야 함
+- hub 로그인/온보딩 엔드포인트는 반복 실패 시 rate limit 으로 제한할 수 있어야 함
 - backend registry 를 파일에 영속 저장할 수 있어야 함
 - 시작 시 local backend 를 기본 registry entry 로 자동 등록할 수 있어야 함
 - 기본 central bind host 는 override 가 없으면 `0.0.0.0` 이어야 하며 LAN 접속을 허용해야 함

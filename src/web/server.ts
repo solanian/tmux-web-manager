@@ -37,6 +37,27 @@ import {
 
 const logger = createLogger('WEB');
 
+const DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const DEFAULT_AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+interface AuthAuditRecord {
+  timestamp: string;
+  event: 'auth-session' | 'auth-login' | 'auth-setup' | 'auth-logout' | 'auth-rate-limit' | 'csrf-reject';
+  result: 'ok' | 'error';
+  remoteAddress: string;
+  username?: string;
+  authMode?: 'session' | 'api-token' | null;
+  error?: string;
+}
+
+function getRemoteAddress(req: http.IncomingMessage): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0]!.trim();
+  }
+  return req.socket.remoteAddress || '';
+}
+
 function isUnsafeMethod(method: string | undefined): boolean {
   const normalized = String(method || '').toUpperCase();
   return normalized === 'POST' || normalized === 'PUT' || normalized === 'PATCH' || normalized === 'DELETE';
@@ -170,6 +191,10 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
   const relayReadGuard = createRelayReadGuard();
   const relayPaneReadGuard = createRelayPaneReadGuard();
   const hubAuth = createHubAuthManager(config);
+  const authLogPath = path.join(config.centralDataDir, 'auth-log.jsonl');
+  const authAttemptWindowMs = 5 * 60 * 1000;
+  const authAttemptLimit = 5;
+  const authAttempts = new Map<string, number[]>();
   const expectedOrigin = (() => {
     try {
       return new URL(config.baseUrl).origin;
@@ -177,6 +202,33 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       return '';
     }
   })();
+
+  function appendAuthAudit(event: AuthAuditRecord['event'], req: http.IncomingMessage, result: AuthAuditRecord['result'], details: { username?: string; authMode?: AuthAuditRecord['authMode']; error?: string } = {}): void {
+    appendJsonLine(authLogPath, {
+      timestamp: new Date().toISOString(),
+      event,
+      result,
+      remoteAddress: getRemoteAddress(req),
+      ...details,
+    } satisfies AuthAuditRecord);
+  }
+
+  function checkAuthRateLimit(req: http.IncomingMessage): string | null {
+    const key = `${getRemoteAddress(req)}:${req.url || ''}`;
+    const now = Date.now();
+    const attempts = (authAttempts.get(key) || []).filter((timestamp) => now - timestamp < authAttemptWindowMs);
+    if (attempts.length >= authAttemptLimit) {
+      authAttempts.set(key, attempts);
+      return 'Too many authentication attempts. Please try again later.';
+    }
+    attempts.push(now);
+    authAttempts.set(key, attempts);
+    return null;
+  }
+
+  function clearAuthRateLimit(req: http.IncomingMessage): void {
+    authAttempts.delete(`${getRemoteAddress(req)}:${req.url || ''}`);
+  }
 
   function validateBrowserWrite(req: http.IncomingMessage, authState: ReturnType<typeof hubAuth.getAuthState>): string | null {
     if (!isUnsafeMethod(req.method) || authState.authMode !== 'session') {
@@ -208,6 +260,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       }
 
       if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+        const rateLimitError = checkAuthRateLimit(req);
+        if (rateLimitError) {
+          appendAuthAudit('auth-rate-limit', req, 'error', { error: rateLimitError });
+          sendJson(res, 429, { error: rateLimitError });
+          return;
+        }
         const body = await readJsonBody(req);
         const username = String(body.username || '');
         const password = String(body.password || '');
@@ -216,10 +274,13 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
           return;
         }
         if (!hubAuth.validateCredentials(username, password)) {
+          appendAuthAudit('auth-login', req, 'error', { username, error: 'Invalid credentials' });
           sendJson(res, 401, { error: 'Invalid credentials' });
           return;
         }
+        clearAuthRateLimit(req);
         const session = hubAuth.issueSession(res);
+        appendAuthAudit('auth-login', req, 'ok', { username, authMode: 'session' });
         sendJson(res, 200, {
           authEnabled: true,
           authenticated: true,
@@ -233,21 +294,32 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       }
 
       if (req.method === 'POST' && url.pathname === '/api/auth/setup') {
+        const rateLimitError = checkAuthRateLimit(req);
+        if (rateLimitError) {
+          appendAuthAudit('auth-rate-limit', req, 'error', { error: rateLimitError });
+          sendJson(res, 429, { error: rateLimitError });
+          return;
+        }
         const body = await readJsonBody(req);
         const username = String(body.username || '');
         const password = String(body.password || '');
         const passwordConfirm = String(body.passwordConfirm || '');
         if (hubAuth.isConfigured()) {
+          appendAuthAudit('auth-setup', req, 'error', { username, error: 'Hub credentials are already configured' });
           sendJson(res, 409, { error: 'Hub credentials are already configured' });
           return;
         }
         if (password !== passwordConfirm) {
+          appendAuthAudit('auth-setup', req, 'error', { username, error: 'password confirmation does not match' });
           sendJson(res, 400, { error: 'password confirmation does not match' });
           return;
         }
         try {
           const credentials = hubAuth.createInitialCredentials(username, password);
-          const session = hubAuth.issueSession(res);
+          clearAuthRateLimit(req);
+          clearAuthRateLimit(req);
+        const session = hubAuth.issueSession(res);
+          appendAuthAudit('auth-setup', req, 'ok', { username: credentials.username, authMode: 'session' });
           sendJson(res, 201, {
             authEnabled: true,
             authenticated: true,
@@ -258,7 +330,9 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
             csrfToken: session.csrfToken,
           });
         } catch (error) {
-          sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+          const message = error instanceof Error ? error.message : String(error);
+          appendAuthAudit('auth-setup', req, 'error', { username, error: message });
+          sendJson(res, 400, { error: message });
         }
         return;
       }
@@ -272,10 +346,12 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
         }
         const browserWriteError = validateBrowserWrite(req, authState);
         if (browserWriteError) {
+          appendAuthAudit('csrf-reject', req, 'error', { authMode: authState.authMode, error: browserWriteError });
           sendJson(res, 403, { error: browserWriteError });
           return;
         }
         hubAuth.clearSession(req, res);
+        appendAuthAudit('auth-logout', req, 'ok', { authMode: authState.authMode });
         sendJson(res, 200, { ok: true });
         return;
       }
@@ -287,6 +363,7 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
       if (shouldProtectRoute(url.pathname)) {
         const browserWriteError = validateBrowserWrite(req, authState);
         if (browserWriteError) {
+          appendAuthAudit('csrf-reject', req, 'error', { authMode: authState.authMode, error: browserWriteError });
           sendJson(res, 403, { error: browserWriteError });
           return;
         }

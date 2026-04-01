@@ -59,7 +59,7 @@ function buildCookie(value: string, maxAgeSeconds: number, secure: boolean): str
     `${COOKIE_NAME}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    'SameSite=Strict',
     secure ? 'Secure' : '',
     `Max-Age=${maxAgeSeconds}`,
   ]
@@ -272,6 +272,16 @@ export function createHubAuthManager(config: AppConfig) {
     return session;
   }
 
+
+  function rotateCsrfToken(req: http.IncomingMessage): string | undefined {
+    const session = readSession(req);
+    if (!session) {
+      return undefined;
+    }
+    session.csrfToken = crypto.randomBytes(24).toString('hex');
+    return session.csrfToken;
+  }
+
   function clearSession(req: http.IncomingMessage, res: http.ServerResponse): void {
     const cookies = parseCookies(req.headers.cookie);
     const sessionId = decodeSessionCookie(cookies[COOKIE_NAME]);
@@ -312,6 +322,7 @@ export function createHubAuthManager(config: AppConfig) {
     isAuthorized,
     issueSession,
     clearSession,
+    rotateCsrfToken,
     validateCredentials,
     createInitialCredentials,
     isConfigured,

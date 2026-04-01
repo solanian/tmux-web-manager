@@ -660,6 +660,59 @@ describe('createWebServer', () => {
   });
 
 
+
+  it('rate-limits repeated failed login attempts and records auth audit logs', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-auth-rate-'));
+    const hubPort = await getFreePort();
+    const server = createWebServer({
+      ...buildTestConfig(root, hubPort),
+      hubAuthUsername: '',
+      hubAuthPassword: '',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+      hubSessionTtlMs: 60_000,
+      hubSecureCookies: false,
+    }, new BackendRegistryStore(root));
+    await server.start();
+
+    try {
+      let response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/setup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'secret-password', passwordConfirm: 'secret-password' }),
+      });
+      expect(response.status).toBe(201);
+
+      for (let index = 0; index < 5; index += 1) {
+        response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ username: 'admin', password: 'wrong-password' }),
+        });
+        expect(response.status).toBe(401);
+      }
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'wrong-password' }),
+      });
+      expect(response.status).toBe(429);
+
+      const logLines = fs
+        .readFileSync(path.join(root, 'central', 'auth-log.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(logLines.map((entry) => entry.event)).toContain('auth-setup');
+      expect(logLines.map((entry) => entry.event)).toContain('auth-login');
+      expect(logLines.map((entry) => entry.event)).toContain('auth-rate-limit');
+      expect(logLines.at(-1)).toMatchObject({ event: 'auth-rate-limit', result: 'error' });
+    } finally {
+      await server.stop();
+    }
+  });
+
   it('reuses persisted hub credentials after restart instead of re-entering onboarding', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-auth-persist-'));
     const firstPort = await getFreePort();

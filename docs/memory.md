@@ -14,6 +14,9 @@
 
 ### Implemented
 
+- 세션 쿠키를 `SameSite=Strict` 로 강화하고, 로그인/온보딩 성공 시 CSRF token 을 반환해 browser write 보호를 강화
+- `central/auth-log.jsonl` 감사 로그를 추가해 auth setup/login/logout, rate-limit, csrf reject 이벤트를 기록
+- hub auth에 로그인/온보딩 rate limit 을 추가하고 반복 실패 시 `429` 로 차단
 - hub 자격증명은 `central/hub-auth.json` 에 저장되어 재시작 후에도 onboarding 대신 기존 로그인 흐름을 유지
 - browser session 기반 hub write 요청에 CSRF token + Origin 검증을 추가하고, API token 경로는 automation 용도로 그대로 유지
 - `POST /api/auth/setup` 과 persisted hub credential file(`central/hub-auth.json`)을 추가
@@ -80,7 +83,7 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`75 passed`)
+- `npm test`: pass (`77 passed`)
 - live smoke: pass (`GET /api/auth/session`, `GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
 
 ## 2026-03-28

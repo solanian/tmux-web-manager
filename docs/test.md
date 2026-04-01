@@ -2,6 +2,9 @@
 
 ## Hub / main
 
+- 세션 쿠키가 `SameSite=Strict` 이고 로그인/온보딩 성공 응답에 CSRF token 이 포함
+- `central/auth-log.jsonl` 에 auth setup/login/logout, rate-limit, csrf reject 이벤트가 기록
+- auth setup/login 반복 실패 시 rate limit(`429`) 이 적용
 - 재시작 후에도 persisted hub credentials 를 재사용하고 onboarding 을 다시 요구하지 않음
 - API token 경로는 CSRF 검증 없이 automation 접근 가능
 - browser session 기반 POST/PUT/DELETE 요청에 CSRF token + origin 검증이 적용
@@ -125,7 +128,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`75 passed`)
+- `npm test`: pass (`77 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)
