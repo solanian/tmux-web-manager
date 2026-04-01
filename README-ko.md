@@ -54,6 +54,11 @@
 - `BACKEND_PUBLIC_URL`: 중앙 서비스가 local backend에 접근할 때 사용할 base URL
 - `BACKEND_NAME`: local backend 표시 이름
 - `BACKEND_AUTH_TOKEN`: backend API / WebSocket용 bearer token. 지정하지 않으면 agent가 자동 생성해서 저장합니다.
+- `HUB_AUTH_USERNAME`: 환경 변수로 미리 계정을 심을 때 사용할 bootstrap 사용자 ID, 기본값 `admin`
+- `HUB_AUTH_PASSWORD`: bootstrap 비밀번호. 비워두면 첫 실행 시 web UI가 onboarding 화면으로 전환되어 최초 ID/PW 생성을 요구합니다.
+- `HUB_API_TOKEN`: hub 인증이 켜진 상태에서 CLI/자동화 접근에 사용할 API token. 비워두면 자동 생성되어 저장됩니다.
+- `HUB_SESSION_TTL_MS`: hub 로그인 세션 수명(ms), 기본값 `43200000` (12시간)
+- `HUB_SECURE_COOKIES`: `Secure` 쿠키 강제 여부 (`true`/`false`). `BASE_URL`이 `https://...`면 기본적으로 활성화됩니다.
 - `TMUX_SOCKET_MODE`: `default` 또는 `dedicated`, 기본값 `default`
 - `TMUX_SOCKET_NAME`: `dedicated` 모드에서 사용할 tmux socket 이름
 - `SESSION_PREFIX`: 자동 생성 세션 이름 prefix
@@ -78,6 +83,14 @@ $DATA_DIR/backend/agent-auth-token
 ```
 
 hub에서 backend를 등록할 때는 이 토큰을 사용해야 합니다.
+
+hub는 이제 기본적으로 login-first 흐름을 사용합니다. 저장된 hub 인증 정보가 없는 새 설치에서는 첫 브라우저 접근 시 onboarding 화면이 열리고, 운영자가 최초 사용자 ID/PW를 만들게 됩니다. 무인 bootstrap이 필요하면 `HUB_AUTH_USERNAME` / `HUB_AUTH_PASSWORD`를 환경 변수로 미리 넣어둘 수 있습니다.
+
+CLI/자동화용 hub API token은 다음 파일에서 확인할 수 있습니다:
+
+```bash
+$DATA_DIR/central/hub-api-token
+```
 
 backend 전용 실행:
 
@@ -123,6 +136,7 @@ tmux 안에서 실행하면 `$TMUX_PANE`를 기본 source pane으로 활용할 �
 유용한 환경 변수:
 
 - `TWM_BASE_URL` 또는 `BASE_URL`
+- `TWM_HUB_API_TOKEN` 또는 `HUB_API_TOKEN`
 - `TWM_SOURCE_BACKEND`
 - `TWM_SOURCE_PANE`
 - `TWM_SOURCE_LABEL`
@@ -131,6 +145,7 @@ tmux 안에서 실행하면 `$TMUX_PANE`를 기본 source pane으로 활용할 �
 
 ```bash
 export TWM_BASE_URL=http://127.0.0.1:8787
+export TWM_HUB_API_TOKEN=$(cat ~/.tmux-web-manager/central/hub-api-token)
 export TWM_SOURCE_BACKEND=server-a
 export TWM_SOURCE_PANE=%1
 npm run bridge -- read server-b reviewer 20

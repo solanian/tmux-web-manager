@@ -28,6 +28,11 @@
 - 기본 central bind host 는 override 가 없으면 `0.0.0.0` 이어야 하며 LAN 접속을 허용해야 함
 - relay/운영 식별 충돌을 막기 위해 backend/server 이름은 registry 전체에서 unique 해야 함
 - backend add/update 시 health check 를 수행해 연결 가능한 backend 만 저장해야 함
+- hub 는 기본적으로 로그인 세션 기반 인증을 요구해야 하며 첫 실행 시 onboarding 으로 최초 ID/PW 생성을 지원해야 함
+- 최초 생성된 hub 자격증명은 재시작 후에도 유지되어야 하며, 기존 계정이 있으면 onboarding 을 다시 요구하지 않아야 함
+- browser UI 는 인증 세션 없이는 state/relay/backend/session 제어 API 를 사용할 수 없어야 함
+- browser session 기반 write 요청은 CSRF token 과 same-origin 검증을 통과해야만 처리되어야 함
+- hub 인증이 활성화된 경우 CLI/automation 은 별도 hub API token 으로 접근할 수 있어야 함
 - backend/server 기본 이름은 명시적 override가 없으면 해당 서버의 hostname 이어야 함
 - 여러 backend 의 session 목록을 합쳐 단일 sidebar payload 로 제공해야 함
 - session 생성 시 `backendId`, `path`, optional `sessionName` 을 대상 `agent` 에 전달해야 함
@@ -66,6 +71,8 @@
 - sidebar 내부 목록 영역은 최소 `Servers` / `Sessions` 두 개의 탭으로 나뉘어 전환 가능해야 함
 - backend create/edit UI 와 session create UI 는 상시 표시되지 않고, 해당 액션 시 modal 로 표시되어야 함
 - backend create/edit modal 에는 agent token 입력 UI가 명확히 보여야 하며, remote backend 등록 시 필수값처럼 안내되어야 함
+- web UI 는 로그인 화면/로그아웃 동작을 제공해야 함
+- 저장된 hub 자격증명이 없는 경우 web UI 는 onboarding 화면을 통해 최초 user id/password 생성을 유도해야 함
 - backend edit modal 은 기존 token 값을 password 형태로 prefill 할 수 있어야 함
 - backend token 입력 UI는 일반 브라우저 복사 동작(`copy`, `cut`, `Ctrl/Cmd+C`)으로 token이 클립보드에 복사되지 않도록 보호되어야 함
 - backend/session modal submit 실패 시 원인을 사용자에게 즉시 보여주는 에러 피드백이 있어야 함
@@ -89,6 +96,10 @@
 - sidebar 전체가 통째로 스크롤되지 않고, backend/session row 목록 영역만 독립적으로 스크롤되어야 함
 - sidebar list 영역은 높이가 제한된 세로 스크롤 영역이어야 하며, row가 넘치면 스크롤바가 실제로 보여야 함
 - central API 는 최소 다음을 제공해야 함:
+  - `GET /api/auth/session`
+  - `POST /api/auth/login`
+  - `POST /api/auth/setup`
+  - `POST /api/auth/logout`
   - `GET /api/state`
   - `POST /api/backends`
   - `PUT /api/backends/:id`
@@ -155,6 +166,7 @@
   - `PREFIX/bin/twm-bridge`
 - 설치 후 `PATH` 와 `.env` 파일만으로 `hub` / `agent` 실행이 가능해야 함
 - CLI wrapper는 agent host에서 실행되지만, 실제 orchestration은 hub API를 호출하는 thin client 형태여야 함
+- hub 인증이 활성화된 경우 CLI wrapper는 hub API token 을 통해 인증된 자동화 경로를 지원해야 함
 - 장시간 운영용 실행은 tmux session life-cycle 에 종속되지 않는 supervisor/autorestart 경로를 제공할 수 있어야 함
 - 장시간 운영용 기본 경로로는 user-level service manager(systemd --user 등)를 사용할 수 있어야 함
 

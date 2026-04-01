@@ -35,7 +35,7 @@ describe('resolveSourceSelector', () => {
 describe('parseBridgeCliArgs', () => {
   it('parses bridge options and command positionals', () => {
     expect(
-      parseBridgeCliArgs(['--hub', 'http://hub:8787', '--json', 'read', 'server-b', 'reviewer', '20'], {
+      parseBridgeCliArgs(['--hub', 'http://hub:8787', '--hub-token', 'hub-secret', '--json', 'read', 'server-b', 'reviewer', '20'], {
         TWM_SOURCE_BACKEND: 'server-a',
         TWM_SOURCE_PANE: '%1',
       } as NodeJS.ProcessEnv),
@@ -44,6 +44,7 @@ describe('parseBridgeCliArgs', () => {
       positionals: ['server-b', 'reviewer', '20'],
       options: {
         hubBaseUrl: 'http://hub:8787',
+        hubApiToken: 'hub-secret',
         json: true,
         fromBackendName: 'server-a',
         fromPaneId: '%1',
@@ -182,5 +183,17 @@ describe('runBridgeCommand', () => {
       TWM_SOURCE_PANE: '%1',
     } as NodeJS.ProcessEnv, fetchImpl);
     expect(result).toMatchObject({ exitCode: 0, stdout: 'ready' });
+  });
+
+  it('forwards hub API tokens as bearer auth headers', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fakeFetch: typeof fetch = (async (input: string | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), init });
+      return new Response(JSON.stringify({ panes: [] }), { status: 200 });
+    }) as typeof fetch;
+
+    await runBridgeCommand(['--hub-token', 'hub-secret', 'panes'], process.env, fakeFetch);
+
+    expect(calls[0]?.init?.headers).toMatchObject({ authorization: 'Bearer hub-secret' });
   });
 });

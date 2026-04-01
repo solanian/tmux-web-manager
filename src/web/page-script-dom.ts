@@ -19,6 +19,17 @@ export const PAGE_SCRIPT_DOM = `    const sidebarToggle = document.getElementByI
     const confirmModalSubmit = document.getElementById('confirmModalSubmit');
     const confirmModalCancel = document.getElementById('confirmModalCancel');
     const hoverTooltip = document.getElementById('hoverTooltip');
+    const authScreen = document.getElementById('authScreen');
+    const authForm = document.getElementById('authForm');
+    const authFormError = document.getElementById('authFormError');
+    const authModeInput = document.getElementById('authMode');
+    const authUsernameInput = document.getElementById('authUsername');
+    const authPasswordInput = document.getElementById('authPassword');
+    const authPasswordConfirmField = document.getElementById('authPasswordConfirmField');
+    const authPasswordConfirmInput = document.getElementById('authPasswordConfirm');
+    const authTitle = document.getElementById('authTitle');
+    const authSubtitle = document.getElementById('authSubtitle');
+    const authSubmit = document.getElementById('authSubmit');
     const backendForm = document.getElementById('backendForm');
     const backendFormError = document.getElementById('backendFormError');
     const backendIdInput = document.getElementById('backendId');
@@ -46,10 +57,11 @@ export const PAGE_SCRIPT_DOM = `    const sidebarToggle = document.getElementByI
     const fontSizeIncrease = document.getElementById('fontSizeIncrease');
     const fontSizeLabel = document.getElementById('fontSizeLabel');
     const connectionPill = document.getElementById('connectionPill');
+    const logoutButton = document.getElementById('logoutButton');
     const composerInput = document.getElementById('composerInput');
     const composerSend = document.getElementById('composerSend');
     const composerKeys = document.querySelectorAll('.composerKey');
-    const state = { backends: [], sessions: [], activeBackendId: '', activeSessionId: '', activeSidebarTab: 'servers', sidebarOpen: true, terminalFontSize: 14, socket: null, confirmAction: null };
+    const state = { backends: [], sessions: [], activeBackendId: '', activeSessionId: '', activeSidebarTab: 'servers', sidebarOpen: true, terminalFontSize: 14, socket: null, confirmAction: null, authEnabled: Boolean(window.__TWM_AUTH_ENABLED__), authenticated: false, authMode: null, csrfToken: '' };
 
     const term = new Terminal({
       cursorBlink: true,

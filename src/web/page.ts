@@ -1,7 +1,7 @@
 import { PAGE_SCRIPT } from './page-script.js';
 import { PAGE_STYLES } from './page-styles.js';
 
-export function renderHtmlPage(): string {
+export function renderHtmlPage(authEnabled = false): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -54,6 +54,7 @@ ${PAGE_STYLES}  </style>
           </div>
         </div>
         <div id="terminalBarRight">
+          <button id="logoutButton" class="iconButton" type="button" hidden>Logout</button>
           <div id="fontControls">
             <button id="fontSizeDecrease" class="iconButton" type="button" aria-label="Decrease terminal font size">−</button>
             <span id="fontSizeLabel">14px</span>
@@ -135,9 +136,25 @@ ${PAGE_STYLES}  </style>
     </div>
   </div>
   <div id="hoverTooltip" hidden></div>
+  <div id="authScreen" ${authEnabled ? "" : "hidden"}>
+    <div id="authPanel">
+      <div id="authEyebrow">SECURE ACCESS</div>
+      <h2 id="authTitle">Sign in to tmux manager</h2>
+      <div id="authSubtitle" class="muted">Authenticate before managing sessions, relays, and panes.</div>
+      <form id="authForm">
+        <input type="hidden" id="authMode" value="login" />
+        <div id="authFormError" class="formError" hidden></div>
+        <div class="field"><label for="authUsername">User ID</label><input id="authUsername" type="text" placeholder="admin" autocomplete="username" required /></div>
+        <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" placeholder="enter password" autocomplete="current-password" required /></div>
+        <div class="field" id="authPasswordConfirmField" hidden><label for="authPasswordConfirm">Confirm Password</label><input id="authPasswordConfirm" type="password" placeholder="repeat password" autocomplete="new-password" /></div>
+        <div class="row"><button type="submit" id="authSubmit">Sign In</button></div>
+      </form>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
   <script>
+window.__TWM_AUTH_ENABLED__ = ${authEnabled ? 'true' : 'false'};
 ${PAGE_SCRIPT}  </script>
 </body>
 </html>`;

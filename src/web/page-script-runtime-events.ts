@@ -1,4 +1,13 @@
-export const PAGE_SCRIPT_RUNTIME_EVENTS = `    sidebarToggle.addEventListener('click', () => {
+export const PAGE_SCRIPT_RUNTIME_EVENTS = `    logoutButton.addEventListener('click', async () => {
+      try {
+        await api('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+      } catch {}
+      state.authEnabled = Boolean(window.__TWM_AUTH_ENABLED__);
+      setAuthenticatedState(false, null, { onboardingRequired: false, configuredUsername: authUsernameInput.value });
+      authPasswordInput.focus();
+    });
+
+    sidebarToggle.addEventListener('click', () => {
       setSidebarOpen(!state.sidebarOpen);
     });
 

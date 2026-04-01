@@ -15,6 +15,9 @@ export interface NativeInstallOptions {
   backendPublicUrl: string;
   backendName: string;
   backendAuthToken: string;
+  hubAuthPassword: string;
+  hubApiToken: string;
+  hubSessionTtlMs: number;
   tmuxSocketMode: TmuxSocketMode;
   tmuxSocketName: string;
   sessionPrefix: string;
@@ -46,6 +49,9 @@ export function buildEnvFile(options: NativeInstallOptions): string {
     `BACKEND_PUBLIC_URL=${quoteShellValue(options.backendPublicUrl)}`,
     `BACKEND_NAME=${quoteShellValue(options.backendName)}`,
     `BACKEND_AUTH_TOKEN=${quoteShellValue(options.backendAuthToken)}`,
+    `HUB_AUTH_PASSWORD=${quoteShellValue(options.hubAuthPassword)}`,
+    `HUB_API_TOKEN=${quoteShellValue(options.hubApiToken)}`,
+    `HUB_SESSION_TTL_MS=${quoteShellValue(String(options.hubSessionTtlMs))}`,
     `TMUX_SOCKET_MODE=${quoteShellValue(options.tmuxSocketMode)}`,
     `TMUX_SOCKET_NAME=${quoteShellValue(options.tmuxSocketName)}`,
     `SESSION_PREFIX=${quoteShellValue(options.sessionPrefix)}`,

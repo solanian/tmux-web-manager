@@ -20,6 +20,15 @@ export interface AppConfig {
   backendName: string;
   backendAuthToken: string;
   backendAuthTokenPath: string;
+  hubAuthUsername?: string;
+  hubAuthPassword?: string;
+  hubAuthConfigPath?: string;
+  hubApiToken?: string;
+  hubApiTokenPath?: string;
+  hubSessionSecret?: string;
+  hubSessionSecretPath?: string;
+  hubSessionTtlMs?: number;
+  hubSecureCookies?: boolean;
   tmuxSocketMode: TmuxSocketMode;
   tmuxSocketName: string;
   sessionPrefix: string;
@@ -45,30 +54,45 @@ function defaultBackendName(): string {
   return os.hostname();
 }
 
+function resolvePersistedSecret(
+  dir: string,
+  fileName: string,
+  providedValue: string | undefined,
+  bytes = 24,
+  generateIfMissing = true,
+): { value: string; filePath: string } {
+  const filePath = path.join(dir, fileName);
+  const provided = providedValue?.trim();
+  if (provided) {
+    fs.writeFileSync(filePath, `${provided}\n`, { mode: 0o600 });
+    return { value: provided, filePath };
+  }
+
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, 'utf8').trim();
+    if (existing) {
+      return { value: existing, filePath };
+    }
+  }
+
+  if (!generateIfMissing) {
+    return { value: '', filePath };
+  }
+
+  const generated = crypto.randomBytes(bytes).toString('hex');
+  fs.writeFileSync(filePath, `${generated}\n`, { mode: 0o600 });
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch {}
+  return { value: generated, filePath };
+}
+
 function resolveBackendAuthToken(
   backendDataDir: string,
   envToken: string | undefined,
 ): { token: string; tokenPath: string } {
-  const tokenPath = path.join(backendDataDir, 'agent-auth-token');
-  const providedToken = envToken?.trim();
-  if (providedToken) {
-    fs.writeFileSync(tokenPath, `${providedToken}\n`, { mode: 0o600 });
-    return { token: providedToken, tokenPath };
-  }
-
-  if (fs.existsSync(tokenPath)) {
-    const existingToken = fs.readFileSync(tokenPath, 'utf8').trim();
-    if (existingToken) {
-      return { token: existingToken, tokenPath };
-    }
-  }
-
-  const generatedToken = crypto.randomBytes(24).toString('hex');
-  fs.writeFileSync(tokenPath, `${generatedToken}\n`, { mode: 0o600 });
-  try {
-    fs.chmodSync(tokenPath, 0o600);
-  } catch {}
-  return { token: generatedToken, tokenPath };
+  const { value, filePath } = resolvePersistedSecret(backendDataDir, 'agent-auth-token', envToken, 24, true);
+  return { token: value, tokenPath: filePath };
 }
 
 function parseTmuxSocketMode(value: string | undefined): TmuxSocketMode {
@@ -162,6 +186,21 @@ export function getConfig(args = process.argv.slice(2)): AppConfig {
     backendDataDir,
     process.env['BACKEND_AUTH_TOKEN'],
   );
+  const hubAuthPassword = (process.env['HUB_AUTH_PASSWORD'] || '').trim();
+  const { value: hubApiToken, filePath: hubApiTokenPath } = resolvePersistedSecret(
+    centralDataDir,
+    'hub-api-token',
+    process.env['HUB_API_TOKEN'],
+    24,
+    true,
+  );
+  const { value: hubSessionSecret, filePath: hubSessionSecretPath } = resolvePersistedSecret(
+    centralDataDir,
+    'hub-session-secret',
+    process.env['HUB_SESSION_SECRET'],
+    32,
+    true,
+  );
 
   return {
     mode,
@@ -178,6 +217,24 @@ export function getConfig(args = process.argv.slice(2)): AppConfig {
     backendName: process.env['BACKEND_NAME'] || defaultBackendName(),
     backendAuthToken,
     backendAuthTokenPath,
+    hubAuthUsername: (process.env['HUB_AUTH_USERNAME'] || '').trim(),
+    hubAuthPassword,
+    hubAuthConfigPath: path.join(centralDataDir, 'hub-auth.json'),
+    hubApiToken,
+    hubApiTokenPath,
+    hubSessionSecret,
+    hubSessionSecretPath,
+    hubSessionTtlMs: parseInteger(process.env['HUB_SESSION_TTL_MS'], 1000 * 60 * 60 * 12),
+    hubSecureCookies:
+      (process.env['HUB_SECURE_COOKIES'] || '').trim()
+        ? ['1', 'true', 'yes', 'on'].includes((process.env['HUB_SECURE_COOKIES'] || '').trim().toLowerCase())
+        : (() => {
+            try {
+              return new URL(process.env['BASE_URL'] || 'http://localhost:8787').protocol === 'https:';
+            } catch {
+              return false;
+            }
+          })(),
     tmuxSocketMode: parseTmuxSocketMode(process.env['TMUX_SOCKET_MODE']),
     tmuxSocketName: process.env['TMUX_SOCKET_NAME'] || 'tmux-web-manager',
     sessionPrefix: process.env['SESSION_PREFIX'] || 'tmux-web-manager',

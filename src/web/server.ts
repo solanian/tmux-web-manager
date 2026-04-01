@@ -8,6 +8,7 @@ import { createLogger } from '../logger.js';
 import { BackendRegistryStore } from '../store.js';
 import type { AggregatedSessionRecord } from '../types.js';
 import { createRelayPaneReadGuard, createRelayReadGuard } from './relay-guard.js';
+import { createHubAuthManager, shouldProtectRoute } from './auth.js';
 import { renderHtmlPage } from './page.js';
 import {
   aggregateBackendPanes,
@@ -35,6 +36,49 @@ import {
 } from './helpers.js';
 
 const logger = createLogger('WEB');
+
+function isUnsafeMethod(method: string | undefined): boolean {
+  const normalized = String(method || '').toUpperCase();
+  return normalized === 'POST' || normalized === 'PUT' || normalized === 'PATCH' || normalized === 'DELETE';
+}
+
+function buildAllowedOrigins(req: http.IncomingMessage, configuredOrigin: string): string[] {
+  const origins = new Set<string>();
+  if (configuredOrigin) {
+    origins.add(configuredOrigin);
+  }
+  const host = typeof req.headers.host === 'string' ? req.headers.host.trim() : '';
+  if (host) {
+    const forwardedProto = typeof req.headers['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'].split(',')[0]!.trim() : '';
+    const protocol = forwardedProto || 'http';
+    origins.add(`${protocol}://${host}`);
+  }
+  return [...origins];
+}
+
+function isAllowedOrigin(req: http.IncomingMessage, configuredOrigin: string): boolean {
+  const requestOrigin = extractRequestOrigin(req);
+  if (!requestOrigin) {
+    return false;
+  }
+  return buildAllowedOrigins(req, configuredOrigin).includes(requestOrigin);
+}
+
+function extractRequestOrigin(req: http.IncomingMessage): string {
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && origin.trim()) {
+    return origin.trim();
+  }
+  const referer = req.headers.referer;
+  if (typeof referer === 'string' && referer.trim()) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
 
 async function resolveTargetBackendOrThrow(
   store: BackendRegistryStore,
@@ -125,14 +169,127 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
   const relayLogPath = path.join(config.centralDataDir, 'relay-log.jsonl');
   const relayReadGuard = createRelayReadGuard();
   const relayPaneReadGuard = createRelayPaneReadGuard();
+  const hubAuth = createHubAuthManager(config);
+  const expectedOrigin = (() => {
+    try {
+      return new URL(config.baseUrl).origin;
+    } catch {
+      return '';
+    }
+  })();
+
+  function validateBrowserWrite(req: http.IncomingMessage, authState: ReturnType<typeof hubAuth.getAuthState>): string | null {
+    if (!isUnsafeMethod(req.method) || authState.authMode !== 'session') {
+      return null;
+    }
+    if (!isAllowedOrigin(req, expectedOrigin)) {
+      return 'Invalid origin';
+    }
+    const csrfHeader = req.headers['x-csrf-token'];
+    const csrfToken = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+    if (!csrfToken || csrfToken !== authState.csrfToken) {
+      return 'Invalid CSRF token';
+    }
+    return null;
+  }
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
       if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(renderHtmlPage());
+        res.end(renderHtmlPage(hubAuth.authEnabled));
         return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/auth/session') {
+        sendJson(res, 200, hubAuth.getAuthState(req));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+        const body = await readJsonBody(req);
+        const username = String(body.username || '');
+        const password = String(body.password || '');
+        if (!hubAuth.authEnabled) {
+          sendJson(res, 200, hubAuth.getAuthState(req));
+          return;
+        }
+        if (!hubAuth.validateCredentials(username, password)) {
+          sendJson(res, 401, { error: 'Invalid credentials' });
+          return;
+        }
+        const session = hubAuth.issueSession(res);
+        sendJson(res, 200, {
+          authEnabled: true,
+          authenticated: true,
+          authMode: 'session',
+          onboardingRequired: false,
+          configuredUsername: username,
+          sessionExpiresAt: new Date(session.expiresAt).toISOString(),
+          csrfToken: session.csrfToken,
+        });
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/setup') {
+        const body = await readJsonBody(req);
+        const username = String(body.username || '');
+        const password = String(body.password || '');
+        const passwordConfirm = String(body.passwordConfirm || '');
+        if (hubAuth.isConfigured()) {
+          sendJson(res, 409, { error: 'Hub credentials are already configured' });
+          return;
+        }
+        if (password !== passwordConfirm) {
+          sendJson(res, 400, { error: 'password confirmation does not match' });
+          return;
+        }
+        try {
+          const credentials = hubAuth.createInitialCredentials(username, password);
+          const session = hubAuth.issueSession(res);
+          sendJson(res, 201, {
+            authEnabled: true,
+            authenticated: true,
+            authMode: 'session',
+            onboardingRequired: false,
+            configuredUsername: credentials.username,
+            sessionExpiresAt: new Date(session.expiresAt).toISOString(),
+            csrfToken: session.csrfToken,
+          });
+        } catch (error) {
+          sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+
+      const authState = hubAuth.getAuthState(req);
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+        if (!authState.authenticated) {
+          sendJson(res, 401, { error: 'Authentication required' });
+          return;
+        }
+        const browserWriteError = validateBrowserWrite(req, authState);
+        if (browserWriteError) {
+          sendJson(res, 403, { error: browserWriteError });
+          return;
+        }
+        hubAuth.clearSession(req, res);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      if (shouldProtectRoute(url.pathname) && !authState.authenticated) {
+        sendJson(res, 401, { error: 'Authentication required' });
+        return;
+      }
+      if (shouldProtectRoute(url.pathname)) {
+        const browserWriteError = validateBrowserWrite(req, authState);
+        if (browserWriteError) {
+          sendJson(res, 403, { error: browserWriteError });
+          return;
+        }
       }
 
       if (req.method === 'GET' && url.pathname === '/api/state') {
@@ -932,6 +1089,17 @@ export function createWebServer(config: AppConfig, store: BackendRegistryStore) 
     if (url.pathname !== '/ws/terminal') {
       socket.destroy();
       return;
+    }
+    const authState = hubAuth.getAuthState(request);
+    if (!authState.authenticated) {
+      socket.destroy();
+      return;
+    }
+    if (authState.authMode === 'session') {
+      if (!isAllowedOrigin(request, expectedOrigin)) {
+        socket.destroy();
+        return;
+      }
     }
 
     const backendId = url.searchParams.get('backendId') || '';

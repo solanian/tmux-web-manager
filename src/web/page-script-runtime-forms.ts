@@ -1,4 +1,32 @@
-export const PAGE_SCRIPT_RUNTIME_FORMS = `    backendForm.addEventListener('submit', async (event) => {
+export const PAGE_SCRIPT_RUNTIME_FORMS = `    authForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      authFormError.hidden = true;
+      authFormError.textContent = '';
+      authSubmit.disabled = true;
+      authSubmit.textContent = 'Signing In...';
+      try {
+        const mode = authModeInput.value === 'setup' ? 'setup' : 'login';
+        const payload = await api('/api/auth/' + mode, {
+          method: 'POST',
+          body: JSON.stringify({
+            username: authUsernameInput.value,
+            password: authPasswordInput.value,
+            passwordConfirm: authPasswordConfirmInput.value,
+          }),
+        });
+        state.authEnabled = Boolean(payload.authEnabled);
+        setAuthenticatedState(Boolean(payload.authenticated), payload.authMode || null, payload);
+        await loadState();
+      } catch (error) {
+        authFormError.textContent = String(error);
+        authFormError.hidden = false;
+      } finally {
+        authSubmit.disabled = false;
+        authSubmit.textContent = authModeInput.value === 'setup' ? 'Create Account' : 'Sign In';
+      }
+    });
+
+    backendForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       backendFormError.hidden = true;
       backendFormError.textContent = '';

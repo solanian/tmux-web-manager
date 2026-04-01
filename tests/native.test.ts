@@ -16,6 +16,9 @@ describe('native install assets', () => {
       backendPublicUrl: 'http://127.0.0.1:8788',
       backendName: 'local-backend',
       backendAuthToken: 'secret',
+      hubAuthPassword: 'admin-password',
+      hubApiToken: 'hub-token',
+      hubSessionTtlMs: 43200000,
       tmuxSocketMode: 'default',
       tmuxSocketName: 'tmux-web-manager',
       sessionPrefix: 'tmux-web-manager',
@@ -26,6 +29,8 @@ describe('native install assets', () => {
     expect(envFile).toContain("ALLOWED_PROJECT_ROOTS='/workspace,/srv/projects'");
     expect(envFile).toContain("BACKEND_AUTH_TOKEN='secret'");
     expect(envFile).toContain("TMUX_SOCKET_MODE='default'");
+    expect(envFile).toContain("HUB_AUTH_PASSWORD='admin-password'");
+    expect(envFile).toContain("HUB_API_TOKEN='hub-token'");
   });
 
   it('renders run scripts for main and sub modes', () => {

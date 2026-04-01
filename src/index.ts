@@ -46,6 +46,10 @@ async function run(): Promise<void> {
     shutdownTasks.unshift(() => web.stop());
     logger.log(`Running in main mode, UI available at ${config.baseUrl}`);
     logger.log(`Local backend auth token file: ${config.backendAuthTokenPath}`);
+    logger.log(`Hub auth enabled: ${config.hubAuthPassword ? 'yes' : 'no'}`);
+    if (config.hubApiTokenPath) {
+      logger.log(`Hub API token file: ${config.hubApiTokenPath}`);
+    }
   }
 
   const shutdown = async (reason: string) => {

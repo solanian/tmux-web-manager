@@ -2,6 +2,16 @@
 
 ## Hub / main
 
+- 재시작 후에도 persisted hub credentials 를 재사용하고 onboarding 을 다시 요구하지 않음
+- API token 경로는 CSRF 검증 없이 automation 접근 가능
+- browser session 기반 POST/PUT/DELETE 요청에 CSRF token + origin 검증이 적용
+- 저장된 hub 자격증명이 없으면 `/api/auth/session` 이 `onboardingRequired: true` 를 반환
+- 첫 실행 onboarding(`POST /api/auth/setup`)으로 최초 hub user id/password 생성 가능
+- `.env.example` 와 native env 파일에 hub auth 관련 변수(`HUB_AUTH_PASSWORD`, `HUB_API_TOKEN`, `HUB_SESSION_TTL_MS`)가 포함
+- README / README-ko 에 hub auth / hub API token 사용법이 문서화되어 있음
+- hub 인증 활성화 시 hub API token bearer header 로 CLI/automation 접근 가능
+- hub 인증 활성화 시 browser session cookie 없이 `/api/state` 등 hub API 가 401 을 반환
+- hub 인증 세션(`GET /api/auth/session`, `POST /api/auth/login`, `POST /api/auth/logout`)
 - backend registry 추가/수정/삭제/영속 저장
 - backend/server 이름 unique 제약(대소문자 무시)
 - 여러 agent backend 의 session 목록 집계와 sidebar payload 구성
@@ -101,6 +111,7 @@
 - `cd tmux-web-manager && npm install`
 - `cd tmux-web-manager && npm run build`
 - `cd tmux-web-manager && npm test`
+- `cd tmux-web-manager && TMPDIR=$PWD/.tmp-vitest npm test`
 - `cd tmux-web-manager && node dist/index.js main --help`
 - `cd tmux-web-manager && node dist/index.js sub --help`
 - `cd tmux-web-manager && ./scripts/install-native.sh --prefix ...`
@@ -114,7 +125,7 @@
 ## Latest Results
 
 - `npm run build`: pass
-- `npm test`: pass (`70 passed`)
+- `npm test`: pass (`75 passed`)
 - `node dist/index.js main --help`: pass
 - `node dist/index.js sub --help`: pass
 - `HOST=0.0.0.0 BACKEND_HOST=0.0.0.0 node dist/index.js main`: pass (non-loopback bind smoke)
@@ -128,6 +139,7 @@
 - hostname default backend name: pass (`backend_name == hostname`)
 - orchestration pane discovery/resolve/read live smoke: pass
 - `twm-bridge` CLI smoke (`panes`, `resolve`, `read`, `send`, `type`, `keys`, `message`): pass
+- hub auth session smoke: pass (`/api/auth/session` + protected `/api/state` regression covered by tests; live service `/api/auth/session` returns auth state)
 - native install artifact generation: pass
 - installed `run-main.sh`: pass
 - installed `run-sub.sh`: pass

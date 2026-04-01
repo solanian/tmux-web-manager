@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 export interface BridgeCliOptions {
   hubBaseUrl: string;
   json: boolean;
+  hubApiToken?: string;
   fromBackendName?: string;
   fromPaneId?: string;
   fromLabel?: string;
@@ -44,6 +45,7 @@ export function printBridgeUsage(): string {
     '  --from-backend <name>  Source backend name (default: $TWM_SOURCE_BACKEND, $BACKEND_NAME, hostname)',
     '  --from-pane <paneId>   Source pane id (default: $TWM_SOURCE_PANE, $TMUX_PANE)',
     '  --from-label <label>   Source pane label fallback when no pane id is available',
+    '  --hub-token <token>    Hub API token (default: $TWM_HUB_API_TOKEN, $HUB_API_TOKEN)',
     '  --json                 Print raw JSON responses when supported',
     '',
     'Commands:',
@@ -75,6 +77,7 @@ export function parseBridgeCliArgs(argv: string[], env: NodeJS.ProcessEnv = proc
       : {}),
     ...(env.TWM_SOURCE_PANE || env.TMUX_PANE ? { fromPaneId: env.TWM_SOURCE_PANE || env.TMUX_PANE || undefined } : {}),
     ...(env.TWM_SOURCE_LABEL ? { fromLabel: env.TWM_SOURCE_LABEL } : {}),
+    ...(env.TWM_HUB_API_TOKEN || env.HUB_API_TOKEN ? { hubApiToken: env.TWM_HUB_API_TOKEN || env.HUB_API_TOKEN || undefined } : {}),
   };
 
   const positionals: string[] = [];
@@ -95,6 +98,10 @@ export function parseBridgeCliArgs(argv: string[], env: NodeJS.ProcessEnv = proc
         break;
       case '--from-label':
         options.fromLabel = argv[index + 1] || '';
+        index += 1;
+        break;
+      case '--hub-token':
+        options.hubApiToken = argv[index + 1] || '';
         index += 1;
         break;
       case '--json':
@@ -299,9 +306,16 @@ export async function runBridgeCommand(
       return { stdout: printBridgeUsage(), stderr: '', exitCode: 0 };
     }
     const request = buildBridgeRequestSpec(parsed);
+    const headers: Record<string, string> = {};
+    if (request.body) {
+      headers['content-type'] = 'application/json';
+    }
+    if (parsed.options.hubApiToken) {
+      headers['authorization'] = `Bearer ${parsed.options.hubApiToken}`;
+    }
     const response = await fetchImpl(`${parsed.options.hubBaseUrl}${request.path}`, {
       method: request.method,
-      headers: request.body ? { 'content-type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       body: request.body ? JSON.stringify(request.body) : undefined,
     });
     const text = await response.text();

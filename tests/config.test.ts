@@ -43,6 +43,22 @@ describe('getConfig', () => {
     expect(fs.existsSync(config.backendAuthTokenPath)).toBe(true);
   });
 
+
+  it('enables hub auth and provisions a hub API token when HUB_AUTH_PASSWORD is set', () => {
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-config-auth-'));
+    process.env['DATA_DIR'] = dataDir;
+    process.env['ALLOWED_PROJECT_ROOTS'] = dataDir;
+    process.env['HUB_AUTH_PASSWORD'] = 'secret-password';
+
+    const config = getConfig(['main']);
+
+    expect(config.hubAuthPassword).toBe('secret-password');
+    expect(config.hubApiToken).toBeTruthy();
+    expect(config.hubSessionSecret).toBeTruthy();
+    expect(fs.existsSync(config.hubApiTokenPath || '')).toBe(true);
+    expect(fs.existsSync(config.hubSessionSecretPath || '')).toBe(true);
+  });
+
   it('builds separate central and backend data directories', () => {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tfw-config-'));
     process.env['DATA_DIR'] = dataDir;

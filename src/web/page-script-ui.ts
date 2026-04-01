@@ -18,6 +18,69 @@ export const PAGE_SCRIPT_UI = `    function applyTerminalFontSize(nextFontSize) 
       sidebarBackdrop.hidden = !(open && isMobileLayout());
     }
 
+    function setAuthMode(mode, configuredUsername) {
+      const onboarding = mode === 'setup';
+      authModeInput.value = onboarding ? 'setup' : 'login';
+      authTitle.textContent = onboarding ? 'Create your hub account' : 'Sign in to tmux manager';
+      authSubtitle.textContent = onboarding
+        ? 'First run detected. Create the administrator user ID and password for this hub.'
+        : 'Authenticate before managing sessions, relays, and panes.';
+      authPasswordConfirmField.hidden = !onboarding;
+      authPasswordConfirmInput.required = onboarding;
+      authSubmit.textContent = onboarding ? 'Create Account' : 'Sign In';
+      if (!onboarding && configuredUsername) {
+        authUsernameInput.value = configuredUsername;
+      }
+    }
+
+    function clearLoadedState() {
+      state.backends = [];
+      state.sessions = [];
+      state.activeBackendId = '';
+      state.activeSessionId = '';
+      renderBackends();
+      renderBackendOptions();
+      renderSessions();
+      term.reset();
+      terminalTitle.textContent = 'No session selected';
+      terminalStatus.textContent = state.authEnabled && !state.authenticated
+        ? 'Sign in to manage sessions.'
+        : 'Select a session from the sidebar.';
+      setConnectionState(false, 'disconnected');
+      if (state.socket) {
+        state.socket.close();
+        state.socket = null;
+      }
+    }
+
+    function setAuthenticatedState(authenticated, authMode, authState) {
+      state.authenticated = authenticated;
+      state.authMode = authMode || null;
+      state.csrfToken = authenticated && authMode === 'session' && authState && authState.csrfToken ? authState.csrfToken : '';
+      logoutButton.hidden = !state.authEnabled || !authenticated;
+      authScreen.hidden = !(state.authEnabled && !authenticated);
+      setAuthMode(authState && authState.onboardingRequired ? 'setup' : 'login', authState && authState.configuredUsername ? authState.configuredUsername : '');
+      if (authenticated) {
+        authFormError.hidden = true;
+        authFormError.textContent = '';
+        authPasswordInput.value = '';
+      } else if (state.authEnabled) {
+        clearLoadedState();
+      }
+      document.body.dataset.authRequired = state.authEnabled && !authenticated ? 'true' : 'false';
+      if (authMode === 'api-token') {
+        terminalStatus.textContent = 'Authenticated via API token.';
+      }
+    }
+
+    async function syncAuthSession() {
+      const response = await fetch('/api/auth/session', { credentials: 'same-origin' });
+      const payload = await response.json();
+      state.authEnabled = Boolean(payload.authEnabled);
+      setAuthenticatedState(Boolean(payload.authenticated), payload.authMode || null, payload);
+      return payload;
+    }
+
     function closeModal() {
       resetSessionForm();
       backendModal.hidden = true;
@@ -196,13 +259,21 @@ export const PAGE_SCRIPT_UI = `    function applyTerminalFontSize(nextFontSize) 
     async function api(path, init) {
       const response = await fetch(path, {
         ...init,
+        credentials: 'same-origin',
         headers: {
           'content-type': 'application/json',
+          ...((init && init.method && !['GET', 'HEAD'].includes(String(init.method).toUpperCase()) && state.authenticated && state.authMode === 'session' && state.csrfToken)
+            ? { 'x-csrf-token': state.csrfToken }
+            : {}),
           ...(init && init.headers ? init.headers : {}),
         },
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({ error: response.statusText }));
+        if (response.status === 401) {
+          state.authEnabled = true;
+          setAuthenticatedState(false, null);
+        }
         throw new Error(payload.error || response.statusText);
       }
       if (response.status === 204) {

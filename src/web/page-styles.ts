@@ -58,6 +58,13 @@ export const PAGE_STYLES = `    :root {
     #terminalBarLeft { display: flex; align-items: center; gap: 12px; min-width: 0; }
     #terminalBarRight { display: flex; align-items: center; gap: 10px; }
     #fontControls { display: inline-flex; align-items: center; gap: 6px; }
+    #logoutButton { min-width: 88px; }
+    #authScreen { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(6px); }
+    #authScreen[hidden] { display: none !important; }
+    #authPanel { width: min(100%, 420px); border-radius: 22px; border: 1px solid var(--border); background: linear-gradient(180deg, rgba(16, 25, 38, 0.98), rgba(8, 16, 24, 0.98)); box-shadow: 0 28px 72px rgba(2, 6, 23, 0.46); padding: 22px; }
+    #authEyebrow { margin-bottom: 10px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+    #authTitle { margin: 0 0 8px; font-size: 28px; }
+    #authSubtitle { margin-bottom: 16px; line-height: 1.5; }
     #fontSizeLabel { min-width: 48px; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--muted); }
     #terminalShell { display: flex; min-height: 0; padding: 8px 8px 0; overflow: hidden; }
     #terminal { flex: 1; min-width: 0; min-height: 0; width: 100%; height: auto; }

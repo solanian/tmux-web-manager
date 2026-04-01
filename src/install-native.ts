@@ -47,6 +47,9 @@ function parseArgs(argv: string[]): CliOptions {
     backendPublicUrl: 'http://127.0.0.1:8788',
     backendName: 'local-backend',
     backendAuthToken: '',
+    hubAuthPassword: '',
+    hubApiToken: '',
+    hubSessionTtlMs: 43200000,
     tmuxSocketMode: 'default',
     tmuxSocketName: 'tmux-web-manager',
     sessionPrefix: 'tmux-web-manager',
@@ -101,6 +104,18 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case '--backend-auth-token':
         options.backendAuthToken = next || '';
+        index += 1;
+        break;
+      case '--hub-auth-password':
+        options.hubAuthPassword = next || '';
+        index += 1;
+        break;
+      case '--hub-api-token':
+        options.hubApiToken = next || '';
+        index += 1;
+        break;
+      case '--hub-session-ttl-ms':
+        options.hubSessionTtlMs = parseInteger(next, options.hubSessionTtlMs);
         index += 1;
         break;
       case '--tmux-socket-mode':
@@ -179,6 +194,9 @@ function usage(): string {
     '  --backend-public-url <url>',
     '  --backend-name <name>',
     '  --backend-auth-token <token>',
+    '  --hub-auth-password <password>',
+    '  --hub-api-token <token>',
+    '  --hub-session-ttl-ms <ms>',
     '  --tmux-socket-mode <default|dedicated>',
     '  --tmux-socket-name <name>',
     '  --session-prefix <prefix>',

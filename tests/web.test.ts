@@ -506,28 +506,38 @@ describe('renderHtmlPage', () => {
     expect(html).toContain('::-webkit-scrollbar');
     expect(html).toContain('id="fontSizeDecrease"');
     expect(html).toContain('id="fontSizeIncrease"');
+    expect(html).toContain('id="logoutButton"');
+    expect(html).toContain('id="authScreen"');
+    expect(html).toContain('window.__TWM_AUTH_ENABLED__');
     expect(html).toContain("body[data-sidebar-open=\"true\"] #sidebar");
   });
 });
 
 describe('createWebServer', () => {
   it('is constructible with the backend registry store', () => {
-    const store = new BackendRegistryStore('/tmp/tfw-web-test');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-construct-'));
+    const store = new BackendRegistryStore(root);
     const server = createWebServer(
       {
         mode: 'main',
         host: '127.0.0.1',
         port: 8787,
         baseUrl: 'http://localhost:8787',
-        dataDir: '/tmp/tfw',
-        centralDataDir: '/tmp/tfw/central',
-        backendDataDir: '/tmp/tfw/backend',
+        dataDir: root,
+        centralDataDir: path.join(root, 'central'),
+        backendDataDir: path.join(root, 'backend'),
         allowedRoots: ['/tmp'],
         backendHost: '127.0.0.1',
         backendPort: 8788,
         backendPublicUrl: 'http://127.0.0.1:8788',
         backendName: 'local',
         backendAuthToken: '',
+        hubAuthUsername: 'admin',
+        hubAuthPassword: 'secret-password',
+        hubApiToken: 'hub-api-token',
+        hubSessionSecret: 'hub-session-secret',
+        hubSessionTtlMs: 60_000,
+        hubSecureCookies: false,
         tmuxSocketMode: 'default',
         tmuxSocketName: 'tfw',
         sessionPrefix: 'tfw',
@@ -538,6 +548,197 @@ describe('createWebServer', () => {
 
     expect(server).toHaveProperty('start');
     expect(server).toHaveProperty('stop');
+  });
+
+
+  it('protects hub APIs behind auth sessions when configured', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-auth-'));
+    const hubPort = await getFreePort();
+    const server = createWebServer({
+      ...buildTestConfig(root, hubPort),
+      hubAuthUsername: '',
+      hubAuthPassword: '',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+      hubSessionTtlMs: 60_000,
+      hubSecureCookies: false,
+    }, new BackendRegistryStore(root));
+    await server.start();
+
+    try {
+      let response = await fetch(`http://127.0.0.1:${hubPort}/api/state`);
+      expect(response.status).toBe(401);
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/session`);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        authEnabled: true,
+        authenticated: false,
+      });
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'wrong-password' }),
+      });
+      expect(response.status).toBe(401);
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/setup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'secret-password', passwordConfirm: 'secret-password' }),
+      });
+      expect(response.status).toBe(201);
+      const setupPayload = await response.json();
+      const cookie = response.headers.get('set-cookie') || '';
+      const sessionCookie = cookie.split(';', 1)[0] || cookie;
+      expect(cookie).toContain('twm_session=');
+      expect(setupPayload.csrfToken).toBeTruthy();
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/state`, {
+        headers: { cookie: sessionCookie },
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ backends: [], sessions: [] });
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/auth/logout`, {
+        method: 'POST',
+        headers: { cookie: sessionCookie },
+      });
+      expect(response.status).toBe(403);
+
+    } finally {
+      await server.stop();
+    }
+  });
+
+
+  it('rejects session-authenticated writes without a matching origin and csrf token', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-csrf-'));
+    const hubPort = await getFreePort();
+    const store = new BackendRegistryStore(root);
+    const server = createWebServer({
+      ...buildTestConfig(root, hubPort),
+      hubAuthUsername: '',
+      hubAuthPassword: '',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+      hubSessionTtlMs: 60_000,
+      hubSecureCookies: false,
+    }, store);
+    await server.start();
+
+    try {
+      const setup = await fetch(`http://127.0.0.1:${hubPort}/api/auth/setup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'secret-password', passwordConfirm: 'secret-password' }),
+      });
+      const setupPayload = await setup.json();
+      const cookie = setup.headers.get('set-cookie') || '';
+      const sessionCookie = cookie.split(';', 1)[0] || cookie;
+
+      let response = await fetch(`http://127.0.0.1:${hubPort}/api/backends`, {
+        method: 'POST',
+        headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'x', baseUrl: 'http://127.0.0.1:9999', authToken: 'a' }),
+      });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ error: 'Invalid origin' });
+
+      response = await fetch(`http://127.0.0.1:${hubPort}/api/backends`, {
+        method: 'POST',
+        headers: { cookie: sessionCookie, origin: `http://127.0.0.1:${hubPort}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'x', baseUrl: 'http://127.0.0.1:9999', authToken: 'a' }),
+      });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ error: 'Invalid CSRF token' });
+
+    } finally {
+      await server.stop();
+    }
+  });
+
+
+  it('reuses persisted hub credentials after restart instead of re-entering onboarding', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-auth-persist-'));
+    const firstPort = await getFreePort();
+    const secondPort = await getFreePort();
+
+    const firstServer = createWebServer({
+      ...buildTestConfig(root, firstPort),
+      hubAuthUsername: '',
+      hubAuthPassword: '',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+      hubSessionTtlMs: 60_000,
+      hubSecureCookies: false,
+    }, new BackendRegistryStore(root));
+    await firstServer.start();
+
+    try {
+      const setup = await fetch(`http://127.0.0.1:${firstPort}/api/auth/setup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'secret-password', passwordConfirm: 'secret-password' }),
+      });
+      expect(setup.status).toBe(201);
+    } finally {
+      await firstServer.stop();
+    }
+
+    const secondServer = createWebServer({
+      ...buildTestConfig(root, secondPort),
+      hubAuthUsername: '',
+      hubAuthPassword: '',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+      hubSessionTtlMs: 60_000,
+      hubSecureCookies: false,
+    }, new BackendRegistryStore(root));
+    await secondServer.start();
+
+    try {
+      let response = await fetch(`http://127.0.0.1:${secondPort}/api/auth/session`);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        authEnabled: true,
+        authenticated: false,
+        onboardingRequired: false,
+        configuredUsername: 'admin',
+      });
+
+      response = await fetch(`http://127.0.0.1:${secondPort}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'secret-password' }),
+      });
+      expect(response.status).toBe(200);
+    } finally {
+      await secondServer.stop();
+    }
+  });
+
+  it('allows hub API token access for CLI workflows', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twm-web-auth-token-'));
+    const hubPort = await getFreePort();
+    const server = createWebServer({
+      ...buildTestConfig(root, hubPort),
+      hubAuthPassword: 'secret-password',
+      hubApiToken: 'hub-api-token',
+      hubSessionSecret: 'hub-session-secret',
+    }, new BackendRegistryStore(root));
+    await server.start();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${hubPort}/api/state`, {
+        headers: hubAuthHeaders(),
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ backends: [], sessions: [] });
+    } finally {
+      await server.stop();
+    }
   });
 
   it('logs successful relay attempts with ok result', async () => {
@@ -590,6 +791,12 @@ describe('createWebServer', () => {
         backendPublicUrl: 'http://127.0.0.1:8788',
         backendName: 'local',
         backendAuthToken: '',
+        hubAuthUsername: 'admin',
+        hubAuthPassword: 'secret-password',
+        hubApiToken: 'hub-api-token',
+        hubSessionSecret: 'hub-session-secret',
+        hubSessionTtlMs: 60_000,
+        hubSecureCookies: false,
         tmuxSocketMode: 'default',
         tmuxSocketName: 'tfw',
         sessionPrefix: 'tfw',
@@ -603,7 +810,7 @@ describe('createWebServer', () => {
     try {
       const readResponse = await fetch(`http://127.0.0.1:${hubPort}/api/relay/read`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -616,7 +823,7 @@ describe('createWebServer', () => {
 
       const response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -698,6 +905,12 @@ describe('createWebServer', () => {
         backendPublicUrl: 'http://127.0.0.1:8788',
         backendName: 'local',
         backendAuthToken: '',
+        hubAuthUsername: 'admin',
+        hubAuthPassword: 'secret-password',
+        hubApiToken: 'hub-api-token',
+        hubSessionSecret: 'hub-session-secret',
+        hubSessionTtlMs: 60_000,
+        hubSecureCookies: false,
         tmuxSocketMode: 'default',
         tmuxSocketName: 'tfw',
         sessionPrefix: 'tfw',
@@ -711,7 +924,7 @@ describe('createWebServer', () => {
     try {
       const readResponse = await fetch(`http://127.0.0.1:${hubPort}/api/relay/read`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -724,7 +937,7 @@ describe('createWebServer', () => {
 
       const response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -788,7 +1001,7 @@ describe('createWebServer', () => {
     try {
       const response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -871,7 +1084,7 @@ describe('createWebServer', () => {
     try {
       let response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/read`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -889,7 +1102,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-text-no-enter`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -902,7 +1115,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/send-keys`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -915,7 +1128,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/message`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourceSessionName: 'build',
@@ -1060,7 +1273,7 @@ describe('createWebServer', () => {
     await server.start();
 
     try {
-      let response = await fetch(`http://127.0.0.1:${hubPort}/api/panes`);
+      let response = await fetch(`http://127.0.0.1:${hubPort}/api/panes`, { headers: hubAuthHeaders() });
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
         panes: [
@@ -1074,7 +1287,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/read`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1092,7 +1305,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/send-text`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1105,7 +1318,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/send-text-no-enter`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1118,7 +1331,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/send-keys`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1131,7 +1344,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/message`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1144,7 +1357,7 @@ describe('createWebServer', () => {
 
       response = await fetch(`http://127.0.0.1:${hubPort}/api/relay/panes/label`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: hubAuthHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sourceBackendName: 'server-a',
           sourcePaneId: '%1',
@@ -1264,7 +1477,7 @@ describe('createWebServer', () => {
     await server.start();
 
     try {
-      const response = await fetch(`http://127.0.0.1:${hubPort}/api/orchestration/panes`);
+      const response = await fetch(`http://127.0.0.1:${hubPort}/api/orchestration/panes`, { headers: hubAuthHeaders() });
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({
         targetIdFormat: 'backendName/paneId',
@@ -1296,6 +1509,7 @@ describe('createWebServer', () => {
 
       const resolveResponse = await fetch(
         `http://127.0.0.1:${hubPort}/api/orchestration/panes/resolve?backendName=server-b&label=reviewer`,
+        { headers: hubAuthHeaders() },
       );
       expect(resolveResponse.status).toBe(200);
       await expect(resolveResponse.json()).resolves.toEqual({
@@ -1318,6 +1532,13 @@ describe('createWebServer', () => {
   });
 });
 
+
+
+
+function hubAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { authorization: 'Bearer hub-api-token', ...extra };
+}
+
 function buildTestConfig(root: string, hubPort: number) {
   return {
     mode: 'main' as const,
@@ -1333,6 +1554,12 @@ function buildTestConfig(root: string, hubPort: number) {
     backendPublicUrl: 'http://127.0.0.1:8788',
     backendName: 'local',
     backendAuthToken: '',
+    hubAuthUsername: 'admin',
+    hubAuthPassword: 'secret-password',
+    hubApiToken: 'hub-api-token',
+    hubSessionSecret: 'hub-session-secret',
+    hubSessionTtlMs: 60_000,
+    hubSecureCookies: false,
     tmuxSocketMode: 'default' as const,
     tmuxSocketName: 'tfw',
     sessionPrefix: 'tfw',

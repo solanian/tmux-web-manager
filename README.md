@@ -54,6 +54,11 @@ The open source tmux hub for multi-server terminals.
 - `BACKEND_PUBLIC_URL`: base URL the central service should use for its local backend entry
 - `BACKEND_NAME`: display name for the local backend entry
 - `BACKEND_AUTH_TOKEN`: bearer token required by the backend API and WebSocket; if omitted, the agent generates and persists one automatically
+- `HUB_AUTH_USERNAME`: bootstrap username used only when pre-seeding credentials via env, default `admin`
+- `HUB_AUTH_PASSWORD`: bootstrap password; if omitted on first run, the web UI falls into onboarding mode and asks the operator to create the first ID/password pair
+- `HUB_API_TOKEN`: optional API token for CLI/automation access when hub auth is enabled; if omitted while hub auth is enabled, one is generated and stored automatically
+- `HUB_SESSION_TTL_MS`: hub login session lifetime in milliseconds, default `43200000` (12h)
+- `HUB_SECURE_COOKIES`: force `Secure` cookies (`true`/`false`); defaults to `true` when `BASE_URL` is `https://...`
 - `TMUX_SOCKET_MODE`: `default` or `dedicated`, default `default`
 - `TMUX_SOCKET_NAME`: dedicated tmux socket name used when `TMUX_SOCKET_MODE=dedicated`
 - `SESSION_PREFIX`: default prefix for auto-generated tmux session names
@@ -78,6 +83,14 @@ $DATA_DIR/backend/agent-auth-token
 ```
 
 Hub-side backend registration must use that token.
+
+The hub now defaults to a login-first web flow. On a brand-new install with no saved hub credentials, the first browser visit shows an onboarding screen that asks the operator to create the initial user ID and password. If you prefer unattended bootstrap, pre-seed `HUB_AUTH_USERNAME` / `HUB_AUTH_PASSWORD` in the environment instead.
+
+A hub API token is also available for CLI/automation access via:
+
+```bash
+$DATA_DIR/central/hub-api-token
+```
 
 Backend-only mode:
 
@@ -123,6 +136,7 @@ When running inside tmux, the wrapper can use `$TMUX_PANE` as the default source
 Useful environment variables:
 
 - `TWM_BASE_URL` or `BASE_URL`
+- `TWM_HUB_API_TOKEN` or `HUB_API_TOKEN`
 - `TWM_SOURCE_BACKEND`
 - `TWM_SOURCE_PANE`
 - `TWM_SOURCE_LABEL`
@@ -131,6 +145,7 @@ Example:
 
 ```bash
 export TWM_BASE_URL=http://127.0.0.1:8787
+export TWM_HUB_API_TOKEN=$(cat ~/.tmux-web-manager/central/hub-api-token)
 export TWM_SOURCE_BACKEND=server-a
 export TWM_SOURCE_PANE=%1
 npm run bridge -- read server-b reviewer 20

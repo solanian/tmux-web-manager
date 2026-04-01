@@ -14,6 +14,15 @@
 
 ### Implemented
 
+- hub 자격증명은 `central/hub-auth.json` 에 저장되어 재시작 후에도 onboarding 대신 기존 로그인 흐름을 유지
+- browser session 기반 hub write 요청에 CSRF token + Origin 검증을 추가하고, API token 경로는 automation 용도로 그대로 유지
+- `POST /api/auth/setup` 과 persisted hub credential file(`central/hub-auth.json`)을 추가
+- hub 인증을 optional toggle이 아니라 기본 login-first 흐름으로 전환하고, 자격증명이 없을 때 onboarding으로 최초 계정 생성을 유도
+- 테스트 환경에서 기본 `/tmp`가 `ENOSPC`일 수 있어 `TMPDIR=$PWD/.tmp-vitest` 재지정으로 vitest를 검증
+- native env / `.env.example` / bridge CLI 에 hub auth 관련 설정(`HUB_AUTH_PASSWORD`, `HUB_API_TOKEN`, `TWM_HUB_API_TOKEN`)을 반영
+- hub 인증이 켜진 경우 hub API/terminal websocket 을 인증 세션 또는 hub API token 뒤로 보호
+- browser UI에 로그인 화면/로그아웃 버튼을 추가하고 `/api/auth/session`, `/api/auth/login`, `/api/auth/logout` 흐름을 구현
+- hub 로그인 세션 인증(`HUB_AUTH_PASSWORD`)과 별도 automation/API token(`HUB_API_TOKEN`) 경로를 추가
 - README SVG wordmark의 하단 분홍 accent bar를 우측으로 옮겨 텍스트 영역과 겹치지 않게 조정
 - README 상단 hero를 깨지지 않는 이전 SVG logo wordmark 버전으로 되돌림
 - `README.md`, `README-ko.md` 상단 hero를 opencode 스타일에 가깝게 단순한 centered title + tagline + 언어 링크 줄로 재정리
@@ -71,8 +80,8 @@
 ### Verification Summary
 
 - `npm run build`: pass
-- `npm test`: pass (`70 passed`)
-- live smoke: pass (`GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
+- `npm test`: pass (`75 passed`)
+- live smoke: pass (`GET /api/auth/session`, `GET /api/orchestration/panes`, `GET /api/orchestration/panes/resolve`, `POST /api/relay/panes/read`, `twm-bridge panes/resolve/read/send/type/keys/message`)
 
 ## 2026-03-28
 
